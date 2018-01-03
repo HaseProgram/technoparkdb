@@ -7,9 +7,11 @@ import (
 	"technoparkdb/user"
 	"database/sql"
 	_ "github.com/lib/pq"
+	"technoparkdb/forum"
 )
 
 var db *sql.DB
+var router *routing.Router
 
 func main() {
 	db, err := sql.Open("postgres", "user=postgres password=126126 dbname=dbproj sslmode=disable")
@@ -23,27 +25,8 @@ func main() {
 		slash.Remover(http.StatusMovedPermanently),
 	)
 
-	userApi := router.Group("/api/user")
-	userApi.Post(`/<nickname:[\w+\.]+>/create`, func(c *routing.Context) error {
-		content, responseCode := user.Create(c, db)
-		c.Response.Header().Set("Content-Type", "application/json")
-		c.Response.WriteHeader(responseCode)
-		return c.Write(content)
-	})
-
-	userApi.Get(`/<nickname:[\w+\.]+>/profile`, func(c *routing.Context) error {
-		content, responseCode := user.Profile(c, db)
-		c.Response.Header().Set("Content-Type", "application/json")
-		c.Response.WriteHeader(responseCode)
-		return c.Write(content)
-	})
-
-	userApi.Post(`/<nickname:[\w+\.]+>/profile`, func(c *routing.Context) error {
-		content, responseCode := user.Update(c, db)
-		c.Response.Header().Set("Content-Type", "application/json")
-		c.Response.WriteHeader(responseCode)
-		return c.Write(content)
-	})
+	user.Route(router, db)
+	forum.Route(router, db)
 
 	http.Handle("/", router)
 	http.ListenAndServe(":5000", nil)

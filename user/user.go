@@ -18,18 +18,12 @@ const insertStatement = "INSERT INTO users (about, email, fullname, nickname) VA
 const selectStatement = "SELECT about, email, fullname, nickname FROM users WHERE email=$1 OR nickname=$2"
 const selectStatementNickname = "SELECT about, email, fullname, nickname FROM users WHERE nickname=$1"
 
-func check(err error) {
-	if err != nil {
-		panic(err)
-	}
-}
-
 func getPost(c *routing.Context) UserStruct {
 	var POST UserStruct
 	c.Request.ParseForm();
 	decoder := json.NewDecoder(c.Request.Body)
 	err := decoder.Decode(&POST)
-	check(err)
+	common.Check(err)
 	return POST
 }
 
@@ -45,16 +39,15 @@ func Create(c *routing.Context, db *sql.DB) (string, int) {
 	row := db.QueryRow(insertStatement, about, email, fullname, nickname)
 	err := row.Scan()
 	if err != nil && err != sql.ErrNoRows {
-
 		rows, selerr := db.Query("SELECT about, email, fullname, nickname FROM users WHERE email='" + email + "' OR nickname='" + nickname + "'")
-		check(selerr)
+		common.Check(selerr)
 
 		var res []UserStruct
 
 		for rows.Next() {
 			var tus UserStruct
 			err = rows.Scan(&tus.About, &tus.Email, &tus.Fullname, &tus.Nickname)
-			check(err)
+			common.Check(err)
 			res = append(res, tus)
 		}
 		content, _ := json.Marshal(res)
