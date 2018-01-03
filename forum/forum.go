@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"technoparkdb/common"
+	"technoparkdb/user"
 )
 
 type ForumStruct struct {
@@ -16,31 +17,16 @@ type ForumStruct struct {
 }
 
 const insertStatement = "INSERT INTO forums (owner_id, owner_nickname, title, slug) VALUES ($1,$2,$3,$4)"
-const selectStatementNickname = "SELECT id, nickname FROM users WHERE nickname=$1"
 const selectStatementSlug = "SELECT slug, title FROM forums WHERE slug=$1"
 const selectStatementSlugAll = "SELECT slug, title, owner_nickname, posts_count, threads_count FROM forums WHERE slug=$1"
 
 func getPost(c *routing.Context) ForumStruct {
 	var POST ForumStruct
-	c.Request.ParseForm();
+	c.Request.ParseForm()
 	decoder := json.NewDecoder(c.Request.Body)
 	err := decoder.Decode(&POST)
 	common.Check(err)
 	return POST
-}
-
-func getUser(nickname string, db *sql.DB) (int, string){
-	row := db.QueryRow(selectStatementNickname, nickname)
-	var id int
-	err := row.Scan(&id, &nickname)
-	switch err {
-	case sql.ErrNoRows:
-		return -1, ""
-	case nil:
-		return id, nickname
-	default:
-		panic(err)
-	}
 }
 
 func Create(c *routing.Context, db *sql.DB) (string, int) {
@@ -49,18 +35,18 @@ func Create(c *routing.Context, db *sql.DB) (string, int) {
 
 	slug := POST.Slug
 	title := POST.Title
-	user := POST.User
-	user_id := -1
+	nick := POST.User
+	userId := -1
 
-	user_id, user = getUser(user, db)
-	if user_id >= 0 {
+	userId, nick = user.GetUserId(nick, db)
+	if userId >= 0 {
 		var res ForumStruct
-		row := db.QueryRow(insertStatement, user_id, user, title, slug)
+		row := db.QueryRow(insertStatement, userId, nick, title, slug)
 		err := row.Scan()
 		if err != nil && err != sql.ErrNoRows {
 			row := db.QueryRow(selectStatementSlug, slug)
 			err := row.Scan(&res.Slug, &res.Title)
-			res.User = user
+			res.User = nick
 			switch err {
 			case nil:
 				content, _ := json.Marshal(res)
@@ -69,11 +55,11 @@ func Create(c *routing.Context, db *sql.DB) (string, int) {
 				panic(err)
 			}
 		}
-		res.User = user
+		res.User = nick
 		res.Slug = slug
 		res.Title = title
-		res.Threads = 0;
-		res.Posts = 0;
+		res.Threads = 0
+		res.Posts = 0
 		content, _ := json.Marshal(res)
 		return string(content), 201
 	}

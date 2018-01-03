@@ -17,6 +17,7 @@ type UserStruct struct {
 const insertStatement = "INSERT INTO users (about, email, fullname, nickname) VALUES ($1,$2,$3,$4)"
 const selectStatement = "SELECT about, email, fullname, nickname FROM users WHERE email=$1 OR nickname=$2"
 const selectStatementNickname = "SELECT about, email, fullname, nickname FROM users WHERE nickname=$1"
+const selectStatementNicknameId = "SELECT id, nickname FROM users WHERE nickname=$1"
 
 func getPost(c *routing.Context) UserStruct {
 	var POST UserStruct
@@ -25,6 +26,20 @@ func getPost(c *routing.Context) UserStruct {
 	err := decoder.Decode(&POST)
 	common.Check(err)
 	return POST
+}
+
+func GetUserId(nickname string, db *sql.DB) (int, string){
+	row := db.QueryRow(selectStatementNicknameId, nickname)
+	var id int
+	err := row.Scan(&id, &nickname)
+	switch err {
+	case sql.ErrNoRows:
+		return -1, ""
+	case nil:
+		return id, nickname
+	default:
+		panic(err)
+	}
 }
 
 func Create(c *routing.Context, db *sql.DB) (string, int) {
