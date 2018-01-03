@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"github.com/go-ozzo/ozzo-routing"
 	"github.com/go-ozzo/ozzo-routing/slash"
-	"databases/user"
+	"technoparkdb/user"
 	"database/sql"
 	_ "github.com/lib/pq"
 )
@@ -25,8 +25,21 @@ func main() {
 
 	userApi := router.Group("/api/user")
 	userApi.Post(`/<nickname:[\w+\.]+>/create`, func(c *routing.Context) error {
-
 		content, responseCode := user.Create(c, db)
+		c.Response.Header().Set("Content-Type", "application/json")
+		c.Response.WriteHeader(responseCode)
+		return c.Write(content)
+	})
+
+	userApi.Get(`/<nickname:[\w+\.]+>/profile`, func(c *routing.Context) error {
+		content, responseCode := user.Profile(c, db)
+		c.Response.Header().Set("Content-Type", "application/json")
+		c.Response.WriteHeader(responseCode)
+		return c.Write(content)
+	})
+
+	userApi.Post(`/<nickname:[\w+\.]+>/profile`, func(c *routing.Context) error {
+		content, responseCode := user.Update(c, db)
 		c.Response.Header().Set("Content-Type", "application/json")
 		c.Response.WriteHeader(responseCode)
 		return c.Write(content)
