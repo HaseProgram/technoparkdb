@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"technoparkdb/common"
-	"technoparkdb/user"
 	"time"
 	"strconv"
 )
@@ -48,6 +47,24 @@ func GetForumSlugId(slug string, db *sql.DB) (int, string){
 	}
 }
 
+func getForumAuthorsInfo(author, slug string, db *sql.DB) (int, string, int, string){
+	selectStatement :="SELECT forum.*, author.* FROM (SELECT id, slug FROM forums WHERE slug=$1) as forum, (SELECT id, nickname FROM users WHERE nickname=$2) as author"
+	row := db.QueryRow(selectStatement, slug, author)
+	var forumID int
+	var authorID int
+	var forumSlug string
+	var authorNickname string
+	err := row.Scan(&forumID, &forumSlug, &authorID, &authorNickname)
+	switch err {
+	case sql.ErrNoRows:
+		return -1, "", -1, ""
+	case nil:
+		return forumID, forumSlug, authorID, authorNickname
+	default:
+		panic(err)
+	}
+}
+
 func CreateThread(c *routing.Context, db *sql.DB) (string, int) {
 	forumSlug := c.Param("slug")
 	forumId := -1
@@ -61,44 +78,41 @@ func CreateThread(c *routing.Context, db *sql.DB) (string, int) {
 	message := POST.Message
 	slug := POST.Slug
 
-	authorId, author = user.GetUserId(author, db)
-	if authorId >= 0 {
-		forumId, forumSlug = GetForumSlugId(forumSlug, db)
-		if forumId >= 0 {
-			var res ThreadStruct
+	forumId, forumSlug, authorId, author = getForumAuthorsInfo(author, forumSlug, db)
+	if authorId >= 0 && forumId >= 0 {
+		var res ThreadStruct
 
-			//костыль, чтобы вставлять в базу nil, а не пустую строку. мб позже попробовать с дефолтным параметром
-			err := sql.ErrNoRows
+		//костыль, чтобы вставлять в базу nil, а не пустую строку. мб позже попробовать с дефолтным параметром
+		err := sql.ErrNoRows
+		if len(slug) > 0 {
+			row := db.QueryRow(selectStatementSlug, slug)
+			err = row.Scan(&res.Id, &res.Slug, &res.Created, &res.Message, &res.Title, &res.Author, &res.ForumSlug)
+		}
+
+		switch err {
+		case sql.ErrNoRows:
+			var row *sql.Row
+			// костыль продолжается
 			if len(slug) > 0 {
-				row := db.QueryRow(selectStatementSlug, slug)
-				err = row.Scan(&res.Id, &res.Slug, &res.Created, &res.Message, &res.Title, &res.Author, &res.ForumSlug)
+				row = db.QueryRow(insertStatement, authorId, author, forumId, forumSlug, title, created, message, slug)
+			} else {
+				row = db.QueryRow(insertStatement, authorId, author, forumId, forumSlug, title, created, message, nil)
 			}
-
-			switch err {
-			case sql.ErrNoRows:
-				var row *sql.Row
-				// костыль продолжается
-				if len(slug) > 0 {
-					row = db.QueryRow(insertStatement, authorId, author, forumId, forumSlug, title, created, message, slug)
-				} else {
-					row = db.QueryRow(insertStatement, authorId, author, forumId, forumSlug, title, created, message, nil)
-				}
-				err := row.Scan(&res.Id)
-				common.Check(err)
-				res.Created = created
-				res.Message = message
-				res.Slug = slug
-				res.Title = title
-				res.Author = author
-				res.ForumSlug = forumSlug
-				content, _ := json.Marshal(res)
-				return string(content), 201
-			case nil:
-				content, _ := json.Marshal(res)
-				return string(content), 409
-			default:
-				panic(err)
-			}
+			err := row.Scan(&res.Id)
+			common.Check(err)
+			res.Created = created
+			res.Message = message
+			res.Slug = slug
+			res.Title = title
+			res.Author = author
+			res.ForumSlug = forumSlug
+			content, _ := json.Marshal(res)
+			return string(content), 201
+		case nil:
+			content, _ := json.Marshal(res)
+			return string(content), 409
+		default:
+			panic(err)
 		}
 	}
 	var res common.ErrStruct
@@ -211,12 +225,6 @@ func GetThreads(c *routing.Context, db *sql.DB) (string, int) {
 
 		res := make([]ThreadStruct, 0)
 		rows, err := db.Query(selectStatementThreads)
-		switch err {
-		case nil:
-		case sql.ErrNoRows:
-		default:
-			panic(err)
-		}
 		for rows.Next() {
 			var tts ThreadStruct
 			err = rows.Scan(&tts.Id, &tts.Author, &tts.Title, &tts.Created, &tts.Message, &tts.Slug)

@@ -12,7 +12,7 @@ import (
 
 type PostStruct struct {
 	Id int `json:"id"`
-	ParentId int `json:"parent_id"`
+	ParentId int `json:"parent"`
 	AuthorId int `json:"author_id"`
 	AuthorName string `json:"author"`
 	Created time.Time `json:"created"`
@@ -30,7 +30,7 @@ type CheckPost struct {
 	PostParentId int
 }
 
-const insertStatement = "INSERT INTO posts (author_id, author_name, message, parent_id, thread_id, forum_id, forum_slug) VALUES ($1,$2,$3, $4, $5, $6, $7) RETURNING created, id"
+const insertStatement = "INSERT INTO posts (author_id, author_name, message, parent_id, thread_id, forum_id, forum_slug, created) VALUES ($1,$2,$3, $4, $5, $6, $7, $8) RETURNING created, id"
 const selectStatement = "SELECT parent_id FROM posts WHERE id=$1"
 
 func getPost(c *routing.Context) PostStruct {
@@ -67,7 +67,8 @@ func GetPostId(id int, db *sql.DB) (int){
 func Create(c *routing.Context, db *sql.DB) (string, int) {
 	POST := getArrayPost(c)
 	defer c.Request.Body.Close()
-
+	created := time.Now()
+	createdTime := created.Format("2006-01-02T15:04:05.000000Z")
 	threadSlugId := c.Param("slugid")
 	_, err := strconv.Atoi(threadSlugId)
 
@@ -100,7 +101,7 @@ func Create(c *routing.Context, db *sql.DB) (string, int) {
 			var res common.ErrStruct
 			res.Message = "Can't found user who created post. Aborting"
 			content, _ := json.Marshal(res)
-			return string(content), 409
+			return string(content), 404
 		}
 		ta.PostParentId = post.ParentId
 		if ta.PostParentId > 0 && GetPostId(post.ParentId, db) < 0 {
@@ -121,7 +122,7 @@ func Create(c *routing.Context, db *sql.DB) (string, int) {
 		author := CheckPostArr[index].AuthorName
 		authorId := CheckPostArr[index].AuthorId
 		parentId := CheckPostArr[index].PostParentId
-		row := db.QueryRow(insertStatement, authorId, author, message, parentId, threadId, forumId, forumSlug)
+		row := db.QueryRow(insertStatement, authorId, author, message, parentId, threadId, forumId, forumSlug, createdTime)
 		err := row.Scan(&tres.Created, &tres.Id)
 		common.Check(err)
 
@@ -129,6 +130,7 @@ func Create(c *routing.Context, db *sql.DB) (string, int) {
 		tres.Message = message
 		tres.ThreadId = threadId
 		tres.ForumSlug = forumSlug
+		tres.ParentId = parentId
 		res = append(res, tres)
 	}
 
