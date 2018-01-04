@@ -8,6 +8,7 @@ import (
 	"database/sql"
 	_ "github.com/lib/pq"
 	"technoparkdb/forum"
+	"technoparkdb/thread"
 )
 
 var db *sql.DB
@@ -27,6 +28,7 @@ func main() {
 
 	user.Route(router, db)
 	forum.Route(router, db)
+	thread.Route(router, db)
 
 	http.Handle("/", router)
 	http.ListenAndServe(":5000", nil)

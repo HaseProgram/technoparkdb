@@ -7,6 +7,7 @@ import (
 	"technoparkdb/common"
 	"technoparkdb/user"
 	"time"
+	"strconv"
 )
 
 type ThreadStruct struct {
@@ -20,7 +21,8 @@ type ThreadStruct struct {
 }
 
 const insertStatement = "INSERT INTO threads (author_id, author_name, forum_id, forum_slug, title, created, message, slug) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id"
-const selectStatementSlug = "SELECT id, slug, created, message, title FROM threads WHERE slug=$1"
+const selectStatementSlug = "SELECT id, slug, created, message, title, author_name, forum_slug FROM threads WHERE slug=$1"
+const selectStatementSlugOrID = "SELECT id, slug, created, message, title, author_name, forum_slug FROM threads WHERE slug=$1 OR id=$2"
 const selectStatementForumSlugId = "SELECT id, slug FROM forums WHERE slug=$1"
 
 func getPost(c *routing.Context) ThreadStruct {
@@ -46,8 +48,6 @@ func GetForumSlugId(slug string, db *sql.DB) (int, string){
 	}
 }
 
-// Сделать сначала select, потом insert
-
 func CreateThread(c *routing.Context, db *sql.DB) (string, int) {
 	forumSlug := c.Param("slug")
 	forumId := -1
@@ -66,14 +66,12 @@ func CreateThread(c *routing.Context, db *sql.DB) (string, int) {
 		forumId, forumSlug = GetForumSlugId(forumSlug, db)
 		if forumId >= 0 {
 			var res ThreadStruct
-			res.Author = author
-			res.ForumSlug = forumSlug
 
-			//костыль, чтобы вставлять в базу nil, а не пустую строку
+			//костыль, чтобы вставлять в базу nil, а не пустую строку. мб позже попробовать с дефолтным параметром
 			err := sql.ErrNoRows
 			if len(slug) > 0 {
 				row := db.QueryRow(selectStatementSlug, slug)
-				err = row.Scan(&res.Id, &res.Slug, &res.Created, &res.Message, &res.Title)
+				err = row.Scan(&res.Id, &res.Slug, &res.Created, &res.Message, &res.Title, &res.Author, &res.ForumSlug)
 			}
 
 			switch err {
@@ -91,6 +89,8 @@ func CreateThread(c *routing.Context, db *sql.DB) (string, int) {
 				res.Message = message
 				res.Slug = slug
 				res.Title = title
+				res.Author = author
+				res.ForumSlug = forumSlug
 				content, _ := json.Marshal(res)
 				return string(content), 201
 			case nil:
@@ -105,5 +105,136 @@ func CreateThread(c *routing.Context, db *sql.DB) (string, int) {
 	res.Message = "Can not create thread. Thread author not found"
 	content, _ := json.Marshal(res)
 	return string(content), 404
+}
 
+func getThread(slug string, ids int, db *sql.DB) (string, int) {
+	var res ThreadStruct
+	row := db.QueryRow(selectStatementSlugOrID, slug, ids)
+	err := row.Scan(&res.Id, &res.Slug, &res.Created, &res.Message, &res.Title, &res.Author, &res.ForumSlug)
+	switch err {
+	case sql.ErrNoRows:
+		var res common.ErrStruct
+		res.Message = "Thread not found!"
+		content, _ := json.Marshal(res)
+		return string(content), 404
+	case nil:
+		content, _ := json.Marshal(res)
+		return string(content), 200
+	default:
+		panic(err)
+	}
+}
+
+func Details(c *routing.Context, db *sql.DB) (string, int) {
+	slug := c.Param("slugid")
+	id, _ := strconv.Atoi(slug)
+	return getThread(slug, id, db)
+}
+
+func Update(c *routing.Context, db *sql.DB) (string, int) {
+	updateStatement := "UPDATE threads SET"
+
+	POST := getPost(c)
+	defer c.Request.Body.Close()
+
+	UPD := false
+
+	message := POST.Message
+	if len(message) > 0 {
+		updateStatement += " message='" + message
+		UPD = true
+	}
+	title := POST.Title
+	if len(title) > 0 {
+		if UPD {
+			updateStatement += "',"
+		}
+		updateStatement += " title='" + title
+		UPD = true
+	}
+
+	slug := c.Param("slugid")
+	var ids int
+	ids, err := strconv.Atoi(slug)
+	orid := ""
+	orslug := ""
+	if err == nil {
+		orid = " id=" + slug
+	} else {
+		orslug = " slug='" + slug + "'"
+	}
+	if UPD {
+		updateStatement += "' WHERE" + orslug + orid + " RETURNING author_name, created, forum_slug, id, message, title, slug"
+		var resOk ThreadStruct
+		err := db.QueryRow(updateStatement).Scan(&resOk.Author, &resOk.Created, &resOk.ForumSlug, &resOk.Id, &resOk.Message, &resOk.Title, &resOk.Slug)
+		switch err {
+		case sql.ErrNoRows:
+			var resErr common.ErrStruct
+			resErr.Message = "Thread not found!"
+			content, _ := json.Marshal(resErr)
+			return string(content), 404
+		case nil:
+			content, _ := json.Marshal(resOk)
+			return string(content), 200
+		default:
+			var resErr common.ErrStruct
+			resErr.Message = "Conflict while updating information!"
+			content, _ := json.Marshal(resErr)
+			return string(content), 409
+		}
+	}
+	return getThread(slug, ids, db)
+}
+
+func GetThreads(c *routing.Context, db *sql.DB) (string, int) {
+	forumSlug := c.Param("slug")
+	forumId, forumSlug := GetForumSlugId(forumSlug, db)
+	if forumId >= 0 {
+		selectStatementThreads := "SELECT id, author_name, title, created, message, slug FROM threads WHERE forum_slug='" + forumSlug + "'"
+
+		desc := c.Query("desc")
+		since := c.Query("since")
+		if len(since) > 0 {
+			switch desc {
+			case "true":
+				selectStatementThreads += " AND created <= '" + since + "'"
+			default:
+				selectStatementThreads += " AND created >= '" + since + "'"
+			}
+		}
+
+		switch desc {
+		case "true":
+			selectStatementThreads += " ORDER BY created DESC"
+		default:
+			selectStatementThreads += " ORDER BY created ASC"
+		}
+
+		limit := c.Query("limit")
+		if len(limit) > 0 {
+			selectStatementThreads += " LIMIT " + limit
+		}
+
+		res := make([]ThreadStruct, 0)
+		rows, err := db.Query(selectStatementThreads)
+		switch err {
+		case nil:
+		case sql.ErrNoRows:
+		default:
+			panic(err)
+		}
+		for rows.Next() {
+			var tts ThreadStruct
+			err = rows.Scan(&tts.Id, &tts.Author, &tts.Title, &tts.Created, &tts.Message, &tts.Slug)
+			tts.ForumSlug = forumSlug
+			common.Check(err)
+			res = append(res, tts)
+		}
+		content, _ := json.Marshal(res)
+		return string(content), 200
+	}
+	var res common.ErrStruct
+	res.Message = "Can't find forum with given slug!"
+	content, _ := json.Marshal(res)
+	return string(content), 404
 }

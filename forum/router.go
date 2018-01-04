@@ -28,4 +28,11 @@ func  Route(router *routing.Router, db *sql.DB) {
 		c.Response.WriteHeader(responseCode)
 		return c.Write(content)
 	})
+
+	forumApi.Get(`/<slug:[\w+\.\-\_]+>/threads`, func(c *routing.Context) error {
+		content, responseCode := thread.GetThreads(c, db)
+		c.Response.Header().Set("Content-Type", "application/json")
+		c.Response.WriteHeader(responseCode)
+		return c.Write(content)
+	})
 }
