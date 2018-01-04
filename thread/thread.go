@@ -156,15 +156,14 @@ func Update(c *routing.Context, db *sql.DB) (string, int) {
 	slug := c.Param("slugid")
 	var ids int
 	ids, err := strconv.Atoi(slug)
-	orid := ""
-	orslug := ""
+	orstate := ""
 	if err == nil {
-		orid = " id=" + slug
+		orstate = " id=" + slug
 	} else {
-		orslug = " slug='" + slug + "'"
+		orstate = " slug='" + slug + "'"
 	}
 	if UPD {
-		updateStatement += "' WHERE" + orslug + orid + " RETURNING author_name, created, forum_slug, id, message, title, slug"
+		updateStatement += "' WHERE" + orstate + " RETURNING author_name, created, forum_slug, id, message, title, slug"
 		var resOk ThreadStruct
 		err := db.QueryRow(updateStatement).Scan(&resOk.Author, &resOk.Created, &resOk.ForumSlug, &resOk.Id, &resOk.Message, &resOk.Title, &resOk.Slug)
 		switch err {
@@ -176,11 +175,6 @@ func Update(c *routing.Context, db *sql.DB) (string, int) {
 		case nil:
 			content, _ := json.Marshal(resOk)
 			return string(content), 200
-		default:
-			var resErr common.ErrStruct
-			resErr.Message = "Conflict while updating information!"
-			content, _ := json.Marshal(resErr)
-			return string(content), 409
 		}
 	}
 	return getThread(slug, ids, db)
