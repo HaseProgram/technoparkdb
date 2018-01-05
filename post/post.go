@@ -9,6 +9,7 @@ import (
 	"technoparkdb/database"
 	"strconv"
 	"github.com/jackc/pgx"
+	"strings"
 )
 
 type PostStruct struct {
@@ -182,7 +183,13 @@ func Details(c *routing.Context) (string, int) {
 
 	postID := c.Param("id")
 
-	var res PostStruct
+	relatedGet := c.Query("related")
+	relatedGetArr := strings.Split(relatedGet, ",")
+	related := make(map[string]string)
+	for _, rel := range relatedGetArr {
+		related[rel] = rel
+	}
+
 	type ForumStruct struct {
 		User string `json:"user,omitempty"`
 		Title string `json:"title,omitempty"`
@@ -191,6 +198,7 @@ func Details(c *routing.Context) (string, int) {
 		Threads int `json:"threads,omitempty"`
 	}
 	type ThreadStruct struct {
+		Id int `json:"id,omitempty"`
 		Slug string `json:"slug,omitempty"`
 		Author string `json:"author,omitempty"`
 		Title string `json:"title,omitempty"`
@@ -205,15 +213,10 @@ func Details(c *routing.Context) (string, int) {
 		Thread *ThreadStruct `json:"thread,omitempty"`
 	}
 
-	selectStatement := `
-		SELECT
-			author_name, created, forum_slug, thread_id, is_edited, message, id
-		FROM posts
-		WHERE id=$1
-	`
+	selectStatement := `SELECT author_id, author_name, created, forum_slug, thread_id, is_edited, message, id FROM posts WHERE id=$1`
 	row := db.QueryRow(selectStatement, postID)
-	err := row.Scan(&res.AuthorName, &res.Created, &res.ForumSlug, &res.ThreadId, &res.Edited, &res.Message, &res.Id)
-	result.Post = res
+	err := row.Scan(&result.Post.AuthorId, &result.Post.AuthorName, &result.Post.Created, &result.Post.ForumSlug, &result.Post.ThreadId, &result.Post.Edited, &result.Post.Message, &result.Post.Id)
+
 	switch err {
 	case pgx.ErrNoRows:
 		var res common.ErrStruct
@@ -221,6 +224,57 @@ func Details(c *routing.Context) (string, int) {
 		content, _ := json.Marshal(res)
 		return string(content), 404
 	case nil:
+		if _, ok := related["user"]; ok {
+			selectStatement = `SELECT about, email, fullname, nickname FROM users WHERE id=$1`
+			row := db.QueryRow(selectStatement, result.Post.AuthorId)
+			var tAuthor user.UserStruct
+			err := row.Scan(&tAuthor.About, &tAuthor.Email, &tAuthor.Fullname, &tAuthor.Nickname)
+			result.Author = &tAuthor
+			switch err {
+			case pgx.ErrNoRows:
+				var res common.ErrStruct
+				res.Message = "Can't found post author."
+				content, _ := json.Marshal(res)
+				return string(content), 404
+			case nil:
+			default:
+				panic(err)
+			}
+		}
+		if _, ok := related["forum"]; ok {
+			selectStatement = `SELECT owner_nickname, title, slug, posts_count, threads_count FROM forums WHERE slug=$1`
+			row := db.QueryRow(selectStatement, result.Post.ForumSlug)
+			var tForum ForumStruct
+			err := row.Scan(&tForum.User, &tForum.Title, &tForum.Slug, &tForum.Posts, &tForum.Threads)
+			result.Forum = &tForum
+			switch err {
+			case pgx.ErrNoRows:
+				var res common.ErrStruct
+				res.Message = "Can't found post forum."
+				content, _ := json.Marshal(res)
+				return string(content), 404
+			case nil:
+			default:
+				panic(err)
+			}
+		}
+		if _, ok := related["thread"]; ok {
+			selectStatement = `SELECT author_name, forum_slug, title, created, message, id, slug FROM threads WHERE id=$1`
+			row := db.QueryRow(selectStatement, result.Post.ThreadId)
+			var tThread ThreadStruct
+			err := row.Scan(&tThread.Author, &tThread.ForumSlug, &tThread.Title, &tThread.Created, &tThread.Message, &tThread.Id, &tThread.Slug)
+			result.Thread = &tThread
+			switch err {
+			case pgx.ErrNoRows:
+				var res common.ErrStruct
+				res.Message = "Can't found post thread."
+				content, _ := json.Marshal(res)
+				return string(content), 404
+			case nil:
+			default:
+				panic(err)
+			}
+		}
 		content, _ := json.Marshal(result)
 		return string(content), 200
 	default:

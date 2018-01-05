@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS forums (
   id SERIAL PRIMARY KEY,
   owner_id INTEGER REFERENCES users (id) ON DELETE CASCADE NOT NULL,
-  owner_name CITEXT,
+  owner_nickname CITEXT,
   title TEXT NOT NULL,
   slug CITEXT UNIQUE NOT NULL,
   posts_count INTEGER DEFAULT 0,
