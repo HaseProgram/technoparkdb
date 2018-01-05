@@ -2,18 +2,19 @@ package forum
 
 import (
 	"github.com/go-ozzo/ozzo-routing"
-	"database/sql"
 	"encoding/json"
 	"technoparkdb/common"
 	"technoparkdb/user"
+	"technoparkdb/database"
+	"github.com/jackc/pgx"
 )
 
 type ForumStruct struct {
-	User string `json:"user"`
-	Title string `json:"title"`
-	Slug string `json:"slug"`
-	Posts int `json:"posts_count"`
-	Threads int `json:"threads_count"`
+	User string `json:"user,omitempty"`
+	Title string `json:"title,omitempty"`
+	Slug string `json:"slug,omitempty"`
+	Posts int `json:"posts,omitempty"`
+	Threads int `json:"threads,omitempty"`
 }
 
 const insertStatement = "INSERT INTO forums (owner_id, owner_nickname, title, slug) VALUES ($1,$2,$3,$4)"
@@ -29,7 +30,8 @@ func getPost(c *routing.Context) ForumStruct {
 	return POST
 }
 
-func Create(c *routing.Context, db *sql.DB) (string, int) {
+func Create(c *routing.Context) (string, int) {
+	db := database.DB
 	POST := getPost(c)
 	defer c.Request.Body.Close()
 
@@ -38,12 +40,12 @@ func Create(c *routing.Context, db *sql.DB) (string, int) {
 	nick := POST.User
 	userId := -1
 
-	userId, nick = user.GetUserId(nick, db)
+	userId, nick = user.GetUserId(nick)
 	if userId >= 0 {
 		var res ForumStruct
 		row := db.QueryRow(insertStatement, userId, nick, title, slug)
 		err := row.Scan()
-		if err != nil && err != sql.ErrNoRows {
+		if err != nil && err != pgx.ErrNoRows {
 			row := db.QueryRow(selectStatementSlug, slug)
 			err := row.Scan(&res.Slug, &res.Title)
 			res.User = nick
@@ -69,7 +71,8 @@ func Create(c *routing.Context, db *sql.DB) (string, int) {
 	return string(content), 404
 }
 
-func Details(c *routing.Context, db *sql.DB) (string, int) {
+func Details(c *routing.Context) (string, int) {
+	db := database.DB
 	slug := c.Param("slug")
 	var res ForumStruct
 
@@ -79,7 +82,7 @@ func Details(c *routing.Context, db *sql.DB) (string, int) {
 	case nil:
 		content, _ := json.Marshal(res)
 		return string(content), 200
-	case sql.ErrNoRows:
+	case pgx.ErrNoRows:
 		var res common.ErrStruct
 		res.Message = "Forum not found!"
 		content, _ := json.Marshal(res)

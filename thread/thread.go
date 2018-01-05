@@ -2,21 +2,22 @@ package thread
 
 import (
 	"github.com/go-ozzo/ozzo-routing"
-	"database/sql"
 	"encoding/json"
 	"technoparkdb/common"
+	"technoparkdb/database"
+	"github.com/jackc/pgx"
 	"time"
 	"strconv"
 )
 
 type ThreadStruct struct {
-	Id int `json:"id"`
-	Slug string `json:"slug"`
-	Author string `json:"author"`
-	Title string `json:"title"`
-	ForumSlug string `json:"forum"`
-	Message string `json:"message"`
-	Created time.Time `json:"created"`
+	Id int `json:"id,omitempty"`
+	Slug string `json:"slug,omitempty"`
+	Author string `json:"author,omitempty"`
+	Title string `json:"title,omitempty"`
+	ForumSlug string `json:"forum,omitempty"`
+	Message string `json:"message,omitempty"`
+	Created time.Time `json:"created,omitempty"`
 }
 
 const insertStatement = "INSERT INTO threads (author_id, author_name, forum_id, forum_slug, title, created, message, slug) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id"
@@ -33,12 +34,13 @@ func getPost(c *routing.Context) ThreadStruct {
 	return POST
 }
 
-func GetForumSlugId(slug string, db *sql.DB) (int, string){
+func GetForumSlugId(slug string) (int, string){
+	db := database.DB
 	row := db.QueryRow(selectStatementForumSlugId, slug)
 	var id int
 	err := row.Scan(&id, &slug)
 	switch err {
-	case sql.ErrNoRows:
+	case pgx.ErrNoRows:
 		return -1, ""
 	case nil:
 		return id, slug
@@ -47,7 +49,8 @@ func GetForumSlugId(slug string, db *sql.DB) (int, string){
 	}
 }
 
-func getForumAuthorsInfo(author, slug string, db *sql.DB) (int, string, int, string){
+func getForumAuthorsInfo(author, slug string) (int, string, int, string){
+	db := database.DB
 	selectStatement :="SELECT forum.*, author.* FROM (SELECT id, slug FROM forums WHERE slug=$1) as forum, (SELECT id, nickname FROM users WHERE nickname=$2) as author"
 	row := db.QueryRow(selectStatement, slug, author)
 	var forumID int
@@ -56,7 +59,7 @@ func getForumAuthorsInfo(author, slug string, db *sql.DB) (int, string, int, str
 	var authorNickname string
 	err := row.Scan(&forumID, &forumSlug, &authorID, &authorNickname)
 	switch err {
-	case sql.ErrNoRows:
+	case pgx.ErrNoRows:
 		return -1, "", -1, ""
 	case nil:
 		return forumID, forumSlug, authorID, authorNickname
@@ -65,7 +68,8 @@ func getForumAuthorsInfo(author, slug string, db *sql.DB) (int, string, int, str
 	}
 }
 
-func CreateThread(c *routing.Context, db *sql.DB) (string, int) {
+func CreateThread(c *routing.Context) (string, int) {
+	db := database.DB
 	forumSlug := c.Param("slug")
 	forumId := -1
 	POST := getPost(c)
@@ -78,20 +82,20 @@ func CreateThread(c *routing.Context, db *sql.DB) (string, int) {
 	message := POST.Message
 	slug := POST.Slug
 
-	forumId, forumSlug, authorId, author = getForumAuthorsInfo(author, forumSlug, db)
+	forumId, forumSlug, authorId, author = getForumAuthorsInfo(author, forumSlug)
 	if authorId >= 0 && forumId >= 0 {
 		var res ThreadStruct
 
 		//костыль, чтобы вставлять в базу nil, а не пустую строку. мб позже попробовать с дефолтным параметром
-		err := sql.ErrNoRows
+		err := pgx.ErrNoRows
 		if len(slug) > 0 {
 			row := db.QueryRow(selectStatementSlug, slug)
 			err = row.Scan(&res.Id, &res.Slug, &res.Created, &res.Message, &res.Title, &res.Author, &res.ForumSlug)
 		}
 
 		switch err {
-		case sql.ErrNoRows:
-			var row *sql.Row
+		case pgx.ErrNoRows:
+			var row *pgx.Row
 			// костыль продолжается
 			if len(slug) > 0 {
 				row = db.QueryRow(insertStatement, authorId, author, forumId, forumSlug, title, created, message, slug)
@@ -121,12 +125,13 @@ func CreateThread(c *routing.Context, db *sql.DB) (string, int) {
 	return string(content), 404
 }
 
-func getThread(slug string, ids int, db *sql.DB) (string, int) {
+func getThread(slug string, ids int) (string, int) {
+	db := database.DB
 	var res ThreadStruct
 	row := db.QueryRow(selectStatementSlugOrID, slug, ids)
 	err := row.Scan(&res.Id, &res.Slug, &res.Created, &res.Message, &res.Title, &res.Author, &res.ForumSlug)
 	switch err {
-	case sql.ErrNoRows:
+	case pgx.ErrNoRows:
 		var res common.ErrStruct
 		res.Message = "Thread not found!"
 		content, _ := json.Marshal(res)
@@ -139,13 +144,14 @@ func getThread(slug string, ids int, db *sql.DB) (string, int) {
 	}
 }
 
-func Details(c *routing.Context, db *sql.DB) (string, int) {
+func Details(c *routing.Context) (string, int) {
 	slug := c.Param("slugid")
 	id, _ := strconv.Atoi(slug)
-	return getThread(slug, id, db)
+	return getThread(slug, id)
 }
 
-func Update(c *routing.Context, db *sql.DB) (string, int) {
+func Update(c *routing.Context) (string, int) {
+	db := database.DB
 	updateStatement := "UPDATE threads SET"
 
 	POST := getPost(c)
@@ -181,7 +187,7 @@ func Update(c *routing.Context, db *sql.DB) (string, int) {
 		var resOk ThreadStruct
 		err := db.QueryRow(updateStatement).Scan(&resOk.Author, &resOk.Created, &resOk.ForumSlug, &resOk.Id, &resOk.Message, &resOk.Title, &resOk.Slug)
 		switch err {
-		case sql.ErrNoRows:
+		case pgx.ErrNoRows:
 			var resErr common.ErrStruct
 			resErr.Message = "Thread not found!"
 			content, _ := json.Marshal(resErr)
@@ -191,12 +197,13 @@ func Update(c *routing.Context, db *sql.DB) (string, int) {
 			return string(content), 200
 		}
 	}
-	return getThread(slug, ids, db)
+	return getThread(slug, ids)
 }
 
-func GetThreads(c *routing.Context, db *sql.DB) (string, int) {
+func GetThreads(c *routing.Context) (string, int) {
+	db := database.DB
 	forumSlug := c.Param("slug")
-	forumId, forumSlug := GetForumSlugId(forumSlug, db)
+	forumId, forumSlug := GetForumSlugId(forumSlug)
 	if forumId >= 0 {
 		selectStatementThreads := "SELECT id, author_name, title, created, message, slug FROM threads WHERE forum_slug='" + forumSlug + "'"
 

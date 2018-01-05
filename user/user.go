@@ -2,16 +2,17 @@ package user
 
 import (
 	"encoding/json"
-	"database/sql"
 	"github.com/go-ozzo/ozzo-routing"
 	"technoparkdb/common"
+	"technoparkdb/database"
+	"github.com/jackc/pgx"
 )
 
 type UserStruct struct {
-	About string `json:"about"`
-	Email string `json:"email"`
-	Fullname string `json:"fullname"`
-	Nickname string `json:"nickname"`
+	About string `json:"about,omitempty"`
+	Email string `json:"email,omitempty"`
+	Fullname string `json:"fullname,omitempty"`
+	Nickname string `json:"nickname,omitempty"`
 }
 
 const insertStatement = "INSERT INTO users (about, email, fullname, nickname) VALUES ($1,$2,$3,$4)"
@@ -28,12 +29,13 @@ func getPost(c *routing.Context) UserStruct {
 	return POST
 }
 
-func GetUserId(nickname string, db *sql.DB) (int, string){
+func GetUserId(nickname string) (int, string){
+	db := database.DB
 	row := db.QueryRow(selectStatementNicknameId, nickname)
 	var id int
 	err := row.Scan(&id, &nickname)
 	switch err {
-	case sql.ErrNoRows:
+	case pgx.ErrNoRows:
 		return -1, ""
 	case nil:
 		return id, nickname
@@ -42,7 +44,8 @@ func GetUserId(nickname string, db *sql.DB) (int, string){
 	}
 }
 
-func Create(c *routing.Context, db *sql.DB) (string, int) {
+func Create(c *routing.Context) (string, int) {
+	db := database.DB
 	POST := getPost(c)
 	defer c.Request.Body.Close()
 
@@ -53,7 +56,7 @@ func Create(c *routing.Context, db *sql.DB) (string, int) {
 
 	row := db.QueryRow(insertStatement, about, email, fullname, nickname)
 	err := row.Scan()
-	if err != nil && err != sql.ErrNoRows {
+	if err != nil && err != pgx.ErrNoRows {
 		rows, selerr := db.Query("SELECT about, email, fullname, nickname FROM users WHERE email='" + email + "' OR nickname='" + nickname + "'")
 		common.Check(selerr)
 
@@ -80,12 +83,13 @@ func Create(c *routing.Context, db *sql.DB) (string, int) {
 	return string(content), 201
 }
 
-func getProfile(nickname string, db *sql.DB) (string, int) {
+func getProfile(nickname string) (string, int) {
+	db := database.DB
 	var res UserStruct
 	row := db.QueryRow(selectStatementNickname, nickname)
 	err := row.Scan(&res.About, &res.Email, &res.Fullname, &res.Nickname)
 	switch err {
-	case sql.ErrNoRows:
+	case pgx.ErrNoRows:
 		var res common.ErrStruct
 		res.Message = "User not found!"
 		content, _ := json.Marshal(res)
@@ -98,12 +102,13 @@ func getProfile(nickname string, db *sql.DB) (string, int) {
 	}
 }
 
-func Profile(c *routing.Context, db *sql.DB) (string, int) {
+func Profile(c *routing.Context) (string, int) {
 	nickname := c.Param("nickname")
-	return getProfile(nickname, db)
+	return getProfile(nickname)
 }
 
-func Update(c *routing.Context, db *sql.DB) (string, int) {
+func Update(c *routing.Context) (string, int) {
+	db := database.DB
 	updateStatement := "UPDATE users SET"
 
 	POST := getPost(c)
@@ -140,7 +145,7 @@ func Update(c *routing.Context, db *sql.DB) (string, int) {
 		var resOk UserStruct
 		err := db.QueryRow(updateStatement).Scan(&resOk.About, &resOk.Email, &resOk.Fullname, &resOk.Nickname)
 		switch err {
-		case sql.ErrNoRows:
+		case pgx.ErrNoRows:
 			var resErr common.ErrStruct
 			resErr.Message = "User not found!"
 			content, _ := json.Marshal(resErr)
@@ -156,5 +161,5 @@ func Update(c *routing.Context, db *sql.DB) (string, int) {
 		}
 	}
 
-	return getProfile(nickname, db)
+	return getProfile(nickname)
 }

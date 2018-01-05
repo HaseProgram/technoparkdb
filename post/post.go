@@ -2,25 +2,26 @@ package post
 
 import (
 	"github.com/go-ozzo/ozzo-routing"
-	"database/sql"
 	"encoding/json"
 	"technoparkdb/common"
 	"time"
 	"technoparkdb/user"
+	"technoparkdb/database"
 	"strconv"
+	"github.com/jackc/pgx"
 )
 
 type PostStruct struct {
-	Id int `json:"id"`
-	ParentId int `json:"parent"`
-	AuthorId int `json:"author_id"`
-	AuthorName string `json:"author"`
-	Created time.Time `json:"created"`
-	ForumId int `json:"forum_id"`
-	ForumSlug string `json:"forum"`
-	Edited bool `json:"edited"`
-	Message string `json:"message"`
-	ThreadId int `json:"thread"`
+	Id int `json:"id,omitempty"`
+	ParentId int `json:"parent,omitempty"`
+	AuthorId int `json:"author_id,omitempty"`
+	AuthorName string `json:"author,omitempty"`
+	Created time.Time `json:"created,omitempty"`
+	ForumId int `json:"forum_id,omitempty"`
+	ForumSlug string `json:"forum,omitempty"`
+	Edited bool `json:"isEdited,omitempty"`
+	Message string `json:"message,omitempty"`
+	ThreadId int `json:"thread,omitempty"`
 }
 
 type ArrPostStruct []PostStruct
@@ -31,7 +32,7 @@ type CheckPost struct {
 }
 
 const insertStatement = "INSERT INTO posts (author_id, author_name, message, parent_id, thread_id, forum_id, forum_slug, created) VALUES ($1,$2,$3, $4, $5, $6, $7, $8) RETURNING created, id"
-const selectStatement = "SELECT parent_id FROM posts WHERE id=$1"
+const selectStatement = "SELECT thread_id FROM posts WHERE id=$1"
 
 func getPost(c *routing.Context) PostStruct {
 	var POST PostStruct
@@ -51,20 +52,23 @@ func getArrayPost(c *routing.Context) ArrPostStruct {
 	return POST
 }
 
-func GetPostId(id int, db *sql.DB) (int){
+func GetPostThread(id int) (int){
+	db := database.DB
+	var thread int
 	row := db.QueryRow(selectStatement, id)
-	err := row.Scan(&id)
+	err := row.Scan(&thread)
 	switch err {
-	case sql.ErrNoRows:
+	case pgx.ErrNoRows:
 		return -1
 	case nil:
-		return id
+		return thread
 	default:
 		panic(err)
 	}
 }
 
-func Create(c *routing.Context, db *sql.DB) (string, int) {
+func Create(c *routing.Context) (string, int) {
+	db := database.DB
 	POST := getArrayPost(c)
 	defer c.Request.Body.Close()
 	created := time.Now()
@@ -86,7 +90,7 @@ func Create(c *routing.Context, db *sql.DB) (string, int) {
 
 	row := db.QueryRow(selectThreadStatement)
 	err = row.Scan(&threadId, &threadSlug, &forumId, &forumSlug)
-	if err == sql.ErrNoRows {
+	if err == pgx.ErrNoRows {
 		var res common.ErrStruct
 		res.Message = "Can't found thread"
 		content, _ := json.Marshal(res)
@@ -96,7 +100,7 @@ func Create(c *routing.Context, db *sql.DB) (string, int) {
 	var CheckPostArr []CheckPost
 	for _, post := range POST {
 		var ta CheckPost
-		ta.AuthorId, ta.AuthorName = user.GetUserId(post.AuthorName, db)
+		ta.AuthorId, ta.AuthorName = user.GetUserId(post.AuthorName)
 		if ta.AuthorId < 0 {
 			var res common.ErrStruct
 			res.Message = "Can't found user who created post. Aborting"
@@ -104,7 +108,8 @@ func Create(c *routing.Context, db *sql.DB) (string, int) {
 			return string(content), 404
 		}
 		ta.PostParentId = post.ParentId
-		if ta.PostParentId > 0 && GetPostId(post.ParentId, db) < 0 {
+		parentThreadID := GetPostThread(post.ParentId)
+		if ta.PostParentId > 0 && threadId != parentThreadID {
 			var res common.ErrStruct
 			res.Message = "Can't found parent post. Aborting"
 			content, _ := json.Marshal(res)
@@ -136,4 +141,89 @@ func Create(c *routing.Context, db *sql.DB) (string, int) {
 
 	content, _ := json.Marshal(res)
 	return string(content), 201
+}
+
+func Update(c *routing.Context) (string, int) {
+	db := database.DB
+	POST := getPost(c)
+	defer c.Request.Body.Close()
+
+	postID := c.Param("id")
+	message := POST.Message
+	var res PostStruct
+	var statement string
+	var err error
+	statement = "SELECT message, author_name, created, forum_slug, id, thread_id FROM posts WHERE id=$1"
+	row := db.QueryRow(statement, postID)
+	err = row.Scan(&res.Message, &res.AuthorName, &res.Created, &res.ForumSlug, &res.Id, &res.ThreadId)
+	switch err {
+	case pgx.ErrNoRows:
+		var res common.ErrStruct
+		res.Message = "Can't found post."
+		content, _ := json.Marshal(res)
+		return string(content), 404
+	case nil:
+		if len(message) > 0 && message != res.Message {
+			statement = "UPDATE posts SET message=$1, is_edited=true WHERE id=$2"
+			row := db.QueryRow(statement, message, postID)
+			err = row.Scan()
+			res.Edited = true
+			res.Message = message
+		}
+		content, _ := json.Marshal(res)
+		return string(content), 200
+	default:
+		panic(err)
+	}
+}
+
+func Details(c *routing.Context) (string, int) {
+	db := database.DB
+
+	postID := c.Param("id")
+
+	var res PostStruct
+	type ForumStruct struct {
+		User string `json:"user,omitempty"`
+		Title string `json:"title,omitempty"`
+		Slug string `json:"slug,omitempty"`
+		Posts int `json:"posts,omitempty"`
+		Threads int `json:"threads,omitempty"`
+	}
+	type ThreadStruct struct {
+		Slug string `json:"slug,omitempty"`
+		Author string `json:"author,omitempty"`
+		Title string `json:"title,omitempty"`
+		ForumSlug string `json:"forum,omitempty"`
+		Message string `json:"message,omitempty"`
+		Created time.Time `json:"created,omitempty"`
+	}
+	var result struct {
+		Post PostStruct `json:"post"`
+		Author *user.UserStruct `json:"author,omitempty"`
+		Forum *ForumStruct `json:"forum,omitempty"`
+		Thread *ThreadStruct `json:"thread,omitempty"`
+	}
+
+	selectStatement := `
+		SELECT
+			author_name, created, forum_slug, thread_id, is_edited, message, id
+		FROM posts
+		WHERE id=$1
+	`
+	row := db.QueryRow(selectStatement, postID)
+	err := row.Scan(&res.AuthorName, &res.Created, &res.ForumSlug, &res.ThreadId, &res.Edited, &res.Message, &res.Id)
+	result.Post = res
+	switch err {
+	case pgx.ErrNoRows:
+		var res common.ErrStruct
+		res.Message = "Can't found post."
+		content, _ := json.Marshal(res)
+		return string(content), 404
+	case nil:
+		content, _ := json.Marshal(result)
+		return string(content), 200
+	default:
+		panic(err)
+	}
 }

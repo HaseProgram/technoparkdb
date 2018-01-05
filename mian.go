@@ -5,30 +5,27 @@ import (
 	"github.com/go-ozzo/ozzo-routing"
 	"github.com/go-ozzo/ozzo-routing/slash"
 	"technoparkdb/user"
-	"database/sql"
-	_ "github.com/lib/pq"
+
 	"technoparkdb/forum"
 	"technoparkdb/thread"
+	"technoparkdb/database"
+	"technoparkdb/post"
 )
 
-var db *sql.DB
 var router *routing.Router
 
 func main() {
-	db, err := sql.Open("postgres", "user=postgres password=126126 dbname=dbproj sslmode=disable")
-	if err != nil {
-		panic(err)
-	}
-	defer db.Close()
-
+	database.Connect()
+	defer database.DB.Close()
 	router := routing.New()
 	router.Use(
 		slash.Remover(http.StatusMovedPermanently),
 	)
 
-	user.Route(router, db)
-	forum.Route(router, db)
-	thread.Route(router, db)
+	user.Route(router)
+	forum.Route(router)
+	thread.Route(router)
+	post.Route(router)
 
 	http.Handle("/", router)
 	http.ListenAndServe(":5000", nil)
