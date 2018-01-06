@@ -10,6 +10,7 @@ import (
 	"technoparkdb/thread"
 	"technoparkdb/database"
 	"technoparkdb/post"
+	"technoparkdb/service"
 )
 
 var router *routing.Router
@@ -26,6 +27,7 @@ func main() {
 	forum.Route(router)
 	thread.Route(router)
 	post.Route(router)
+	service.Route(router)
 
 	http.Handle("/", router)
 	http.ListenAndServe(":5000", nil)

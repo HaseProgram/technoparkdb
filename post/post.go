@@ -281,3 +281,7 @@ func Details(c *routing.Context) (string, int) {
 		panic(err)
 	}
 }
+
+func GetPosts(c *routing.Context) (string, int) {
+
+}

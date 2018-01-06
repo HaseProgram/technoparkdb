@@ -34,4 +34,11 @@ func  Route(router *routing.Router) {
 		c.Response.WriteHeader(responseCode)
 		return c.Write(content)
 	})
+
+	forumApi.Get(`/<slug:[\w+\.\-\_]+>/users`, func(c *routing.Context) error {
+		content, responseCode := GetUsers(c)
+		c.Response.Header().Set("Content-Type", "application/json")
+		c.Response.WriteHeader(responseCode)
+		return c.Write(content)
+	})
 }

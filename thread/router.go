@@ -27,4 +27,11 @@ func  Route(router *routing.Router) {
 		c.Response.WriteHeader(responseCode)
 		return c.Write(content)
 	})
+
+	threadApi.Get(`/<slugid:[\w+\.\-\_]+>/posts`, func(c *routing.Context) error {
+		content, responseCode := post.GetPosts(c)
+		c.Response.Header().Set("Content-Type", "application/json")
+		c.Response.WriteHeader(responseCode)
+		return c.Write(content)
+	})
 }

@@ -7,6 +7,8 @@ import (
 	"technoparkdb/user"
 	"technoparkdb/database"
 	"github.com/jackc/pgx"
+	"technoparkdb/thread"
+	"strconv"
 )
 
 type ForumStruct struct {
@@ -90,4 +92,51 @@ func Details(c *routing.Context) (string, int) {
 	default:
 		panic(err)
 	}
+}
+
+func GetUsers(c *routing.Context) (string, int) {
+	db := database.DB
+	forumSlug := c.Param("slug")
+	forumId, forumSlug := thread.GetForumSlugId(forumSlug)
+	if forumId >= 0 {
+		selectStatement := "SELECT about, email, fullname, nickname FROM users u JOIN forum_users fu ON (u.id = fu.user_id) WHERE fu.forum_id=" + strconv.Itoa(forumId)
+
+		desc := c.Query("desc")
+		since := c.Query("since")
+		if len(since) > 0 {
+			switch desc {
+			case "true":
+				selectStatement += " AND u.nickname < '" + since + "'"
+			default:
+				selectStatement += " AND u.nickname > '" + since + "'"
+			}
+		}
+
+		switch desc {
+		case "true":
+			selectStatement += " ORDER BY u.nickname DESC"
+		default:
+			selectStatement += " ORDER BY u.nickname ASC"
+		}
+
+		limit := c.Query("limit")
+		if len(limit) > 0 {
+			selectStatement += " LIMIT " + limit
+		}
+
+		res := make([]user.UserStruct, 0)
+		rows, err := db.Query(selectStatement)
+		for rows.Next() {
+			var tus user.UserStruct
+			err = rows.Scan(&tus.About, &tus.Email, &tus.Fullname, &tus.Nickname)
+			common.Check(err)
+			res = append(res, tus)
+		}
+		content, _ := json.Marshal(res)
+		return string(content), 200
+	}
+	var res common.ErrStruct
+	res.Message = "Can't find forum with given slug!"
+	content, _ := json.Marshal(res)
+	return string(content), 404
 }
