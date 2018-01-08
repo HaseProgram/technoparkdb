@@ -283,6 +283,105 @@ func Details(c *routing.Context) (string, int) {
 }
 
 func GetPosts(c *routing.Context) (string, int) {
+	db := database.DB
 
-	return "", 200
+	threadSlugId := c.Param("slugid")
+	_, err := strconv.Atoi(threadSlugId)
+
+	selectThreadStatement := "SELECT id, slug FROM threads WHERE"
+	if err == nil {
+		selectThreadStatement += " id=" + threadSlugId
+	} else {
+		selectThreadStatement += " slug='" + threadSlugId + "'"
+	}
+
+	var threadId int
+	var threadSlug string
+
+	row := db.QueryRow(selectThreadStatement)
+	err = row.Scan(&threadId, &threadSlug)
+	if err == pgx.ErrNoRows {
+		var res common.ErrStruct
+		res.Message = "Can't found thread"
+		content, _ := json.Marshal(res)
+		return string(content), 404
+	}
+
+	limit := c.Query("limit")
+	since := c.Query("since")
+	sort := c.Query("sort")
+	desc := c.Query("desc")
+
+	selectStatement := "SELECT created, id, is_edited, message, parent_id, author_id, thread_id, forum_slug, forum_id, author_name FROM posts WHERE"
+
+	switch sort {
+	case "tree":
+		selectStatement += " thread_id=" + strconv.Itoa(threadId)
+		if len(since) > 0 {
+			switch desc {
+			case "true":
+				selectStatement += " AND path_to_post < (SELECT path_to_post FROM posts WHERE id=" + since + ")"
+			default:
+				selectStatement += " AND path_to_post > (SELECT path_to_post FROM posts WHERE id=" + since + ")"
+			}
+		}
+		switch desc {
+		case "true":
+			selectStatement += " ORDER BY path_to_post DESC"
+		default:
+			selectStatement += " ORDER BY path_to_post ASC"
+		}
+		if len(limit) > 0 {
+			selectStatement += " LIMIT " + limit
+		}
+	case "parent_tree":
+		selectStatement += " path_to_post[1] IN (SELECT id FROM posts WHERE thread_id=" + strconv.Itoa(threadId) + " AND parent_id=0"
+		if len(since) > 0 {
+			switch desc {
+			case "true":
+				selectStatement += " AND path_to_post < (SELECT path_to_post FROM posts WHERE id=" + since + ")"
+			default:
+				selectStatement += " AND path_to_post > (SELECT path_to_post FROM posts WHERE id=" + since + ")"
+			}
+		}
+		if len(limit) > 0 {
+			limit = " LIMIT " + limit
+		}
+		switch desc {
+		case "true":
+			selectStatement += " ORDER BY id DESC" + limit + ") ORDER BY path_to_post DESC"
+		default:
+			selectStatement += " ORDER BY id ASC" + limit + ") ORDER BY path_to_post ASC"
+		}
+	default: // flat
+		selectStatement += " thread_id=" + strconv.Itoa(threadId)
+		if len(since) > 0 {
+			switch desc {
+			case "true":
+				selectStatement += " AND id < '" + since + "'"
+			default:
+				selectStatement += " AND id > '" + since + "'"
+			}
+		}
+		switch desc {
+		case "true":
+			selectStatement += " ORDER BY id DESC"
+		default:
+			selectStatement += " ORDER BY id ASC"
+		}
+		if len(limit) > 0 {
+			selectStatement += " LIMIT " + limit
+		}
+	}
+
+	res := make([]PostStruct, 0)
+	rows, err := db.Query(selectStatement)
+	for rows.Next() {
+		var tps PostStruct
+		err = rows.Scan(&tps.Created, &tps.Id, &tps.Edited, &tps.Message, &tps.ParentId, &tps.AuthorId, &tps.ThreadId, &tps.ForumSlug, &tps.ForumId, &tps.AuthorName)
+		common.Check(err)
+		res = append(res, tps)
+	}
+	content, _ := json.Marshal(res)
+	return string(content), 200
 }

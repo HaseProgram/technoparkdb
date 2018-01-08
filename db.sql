@@ -67,6 +67,7 @@ $update_thread_trig$
 $update_thread_trig$
 LANGUAGE plpgsql;
 
+
 CREATE OR REPLACE FUNCTION update_posts_func() RETURNS TRIGGER AS
 $update_posts_trig$
 	BEGIN
@@ -75,6 +76,18 @@ $update_posts_trig$
 		RETURN NEW;
 	END;
 $update_posts_trig$
+LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION path_posts_func() RETURNS TRIGGER AS
+$path_posts_trig$
+	BEGIN
+		IF (NEW.parent_id = 0)
+			THEN NEW.path_to_post = ARRAY[NEW.id];
+			ELSE NEW.path_to_post = (SELECT p.path_to_post || NEW.id FROM posts p WHERE id = NEW.parent_id);
+		END IF;
+		RETURN NEW;
+	END;
+$path_posts_trig$
 LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION vote_insert_func() RETURNS TRIGGER AS
@@ -105,9 +118,11 @@ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS update_thread_trig ON threads;
 DROP TRIGGER IF EXISTS update_posts_trig ON posts;
+DROP TRIGGER IF EXISTS path_posts_trig ON posts;
 DROP TRIGGER IF EXISTS vote_insert_trig ON thread_votes;
 DROP TRIGGER IF EXISTS vote_update_trig ON thread_votes;
 CREATE TRIGGER update_thread_trig AFTER INSERT ON threads FOR EACH ROW EXECUTE PROCEDURE update_thread_func();
 CREATE TRIGGER update_posts_trig AFTER INSERT ON posts FOR EACH ROW EXECUTE PROCEDURE update_posts_func();
+CREATE TRIGGER path_posts_trig BEFORE INSERT ON posts FOR EACH ROW EXECUTE PROCEDURE path_posts_func();
 CREATE TRIGGER vote_insert_trig AFTER INSERT ON thread_votes FOR EACH ROW EXECUTE PROCEDURE vote_insert_func();
 CREATE TRIGGER vote_update_trig AFTER UPDATE ON thread_votes FOR EACH ROW EXECUTE PROCEDURE vote_update_func();
