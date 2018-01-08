@@ -44,17 +44,24 @@ CREATE TABLE IF NOT EXISTS posts (
 );
 
 CREATE TABLE IF NOT EXISTS forum_users (
-	id SERIAL PRIMARY KEY,
 	user_id INTEGER REFERENCES users (id) ON DELETE CASCADE NOT NULL,
-	forum_id INTEGER REFERENCES forums (id) ON DELETE CASCADE NOT NULL
+	forum_id INTEGER REFERENCES forums (id) ON DELETE CASCADE NOT NULL,
+	CONSTRAINT user_forum UNIQUE (user_id, forum_id)
+);
+
+CREATE TABLE IF NOT EXISTS thread_votes (
+	id SERIAL PRIMARY KEY,
+	user_nickname CITEXT REFERENCES users (nickname) ON DELETE CASCADE NOT NULL,
+	thread_id INTEGER REFERENCES threads (id) ON DELETE CASCADE NOT NULL,
+	CONSTRAINT user_thread UNIQUE (user_nickname, thread_id),
+	vote INTEGER
 );
 
 CREATE OR REPLACE FUNCTION update_thread_func() RETURNS TRIGGER AS
 $update_thread_trig$
 	BEGIN
 		UPDATE forums SET threads_count = threads_count + 1 WHERE id = NEW.forum_id;
-		INSERT INTO forum_users (user_id, forum_id) SELECT NEW.author_id, NEW.forum_id WHERE NOT EXISTS 
-			(SELECT user_id, forum_id FROM forum_users WHERE user_id=NEW.author_id AND forum_id=NEW.forum_id);
+		INSERT INTO forum_users (user_id, forum_id) (SELECT NEW.author_id, NEW.forum_id) ON CONFLICT (user_id, forum_id) DO NOTHING;
 		RETURN NEW;
 	END;
 $update_thread_trig$
@@ -64,14 +71,43 @@ CREATE OR REPLACE FUNCTION update_posts_func() RETURNS TRIGGER AS
 $update_posts_trig$
 	BEGIN
 		UPDATE forums SET posts_count = posts_count + 1 WHERE id = NEW.forum_id;
-		INSERT INTO forum_users (user_id, forum_id) SELECT NEW.author_id, NEW.forum_id WHERE NOT EXISTS 
-			(SELECT user_id, forum_id FROM forum_users WHERE user_id=NEW.author_id AND forum_id=NEW.forum_id);
+		INSERT INTO forum_users (user_id, forum_id) (SELECT NEW.author_id, NEW.forum_id) ON CONFLICT (user_id, forum_id) DO NOTHING;
 		RETURN NEW;
 	END;
 $update_posts_trig$
 LANGUAGE plpgsql;
 
+CREATE OR REPLACE FUNCTION vote_insert_func() RETURNS TRIGGER AS
+$vote_insert_trig$
+	BEGIN
+		IF (NEW.vote>0)
+			THEN UPDATE threads SET votes=votes+1 WHERE id=NEW.thread_id;
+			ELSE UPDATE threads SET votes=votes-1 WHERE id=NEW.thread_id;
+		END IF;
+		RETURN NEW;
+	END;
+$vote_insert_trig$
+LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION vote_update_func() RETURNS TRIGGER AS
+$vote_update_trig$
+	BEGIN
+		IF (NEW.vote!=OLD.vote) THEN
+			IF (NEW.vote>0)
+				THEN UPDATE threads SET votes=votes+2 WHERE id=NEW.thread_id;
+				ELSE UPDATE threads SET votes=votes-2 WHERE id=NEW.thread_id;
+			END IF;
+		END IF;
+		RETURN NEW;
+	END;
+$vote_update_trig$
+LANGUAGE plpgsql;
+
 DROP TRIGGER IF EXISTS update_thread_trig ON threads;
 DROP TRIGGER IF EXISTS update_posts_trig ON posts;
+DROP TRIGGER IF EXISTS vote_insert_trig ON thread_votes;
+DROP TRIGGER IF EXISTS vote_update_trig ON thread_votes;
 CREATE TRIGGER update_thread_trig AFTER INSERT ON threads FOR EACH ROW EXECUTE PROCEDURE update_thread_func();
 CREATE TRIGGER update_posts_trig AFTER INSERT ON posts FOR EACH ROW EXECUTE PROCEDURE update_posts_func();
+CREATE TRIGGER vote_insert_trig AFTER INSERT ON thread_votes FOR EACH ROW EXECUTE PROCEDURE vote_insert_func();
+CREATE TRIGGER vote_update_trig AFTER UPDATE ON thread_votes FOR EACH ROW EXECUTE PROCEDURE vote_update_func();
