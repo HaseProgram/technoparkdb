@@ -4,6 +4,7 @@ import (
 	"github.com/go-ozzo/ozzo-routing"
 	"technoparkdb/database"
 	"encoding/json"
+	"github.com/jackc/pgx"
 )
 
 type CountStruct struct {
@@ -37,6 +38,9 @@ func Status(c *routing.Context) (string, int) {
 func Clear(c *routing.Context) (string, int) {
 	db := database.DB
 	deleteStatement := "DELETE FROM users"
-	db.QueryRow(deleteStatement)
-	return "", 200
+	err := db.QueryRow(deleteStatement).Scan()
+	if err == pgx.ErrNoRows {
+		return "", 200
+	}
+	return "", 409
 }

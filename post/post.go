@@ -283,6 +283,6 @@ func Details(c *routing.Context) (string, int) {
 }
 
 func GetPosts(c *routing.Context) (string, int) {
-	
+
 	return "", 200
 }
