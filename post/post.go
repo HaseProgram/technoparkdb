@@ -77,7 +77,7 @@ func Create(c *routing.Context) (string, int) {
 	threadSlugId := c.Param("slugid")
 	_, err := strconv.Atoi(threadSlugId)
 
-	selectThreadStatement := "SELECT id, slug, forum_id, forum_slug from threads WHERE"
+	selectThreadStatement := "SELECT id, forum_id, forum_slug, slug from threads WHERE"
 	if err == nil {
 		selectThreadStatement += " id=" + threadSlugId
 	} else {
@@ -89,9 +89,12 @@ func Create(c *routing.Context) (string, int) {
 	var forumId int
 	var forumSlug string
 
-	row := db.QueryRow(selectThreadStatement)
-	err = row.Scan(&threadId, &threadSlug, &forumId, &forumSlug)
+	transaction, _ := db.Begin()
+
+	row := transaction.QueryRow(selectThreadStatement)
+	err = row.Scan(&threadId, &forumId, &forumSlug, &threadSlug)
 	if err == pgx.ErrNoRows {
+		transaction.Rollback()
 		var res common.ErrStruct
 		res.Message = "Can't found thread"
 		content, _ := json.Marshal(res)
@@ -103,14 +106,25 @@ func Create(c *routing.Context) (string, int) {
 		var ta CheckPost
 		ta.AuthorId, ta.AuthorName = user.GetUserId(post.AuthorName)
 		if ta.AuthorId < 0 {
+			transaction.Rollback()
 			var res common.ErrStruct
 			res.Message = "Can't found user who created post. Aborting"
 			content, _ := json.Marshal(res)
 			return string(content), 404
 		}
 		ta.PostParentId = post.ParentId
-		parentThreadID := GetPostThread(post.ParentId)
+		var parentThreadID int
+		row := transaction.QueryRow(selectStatement, post.ParentId)
+		err := row.Scan(&parentThreadID)
+		switch err {
+		case pgx.ErrNoRows:
+			parentThreadID = -1
+		case nil:
+		default:
+			panic(err)
+		}
 		if ta.PostParentId > 0 && threadId != parentThreadID {
+			transaction.Rollback()
 			var res common.ErrStruct
 			res.Message = "Can't found parent post. Aborting"
 			content, _ := json.Marshal(res)
@@ -128,7 +142,7 @@ func Create(c *routing.Context) (string, int) {
 		author := CheckPostArr[index].AuthorName
 		authorId := CheckPostArr[index].AuthorId
 		parentId := CheckPostArr[index].PostParentId
-		row := db.QueryRow(insertStatement, authorId, author, message, parentId, threadId, forumId, forumSlug, createdTime)
+		row := transaction.QueryRow(insertStatement, authorId, author, message, parentId, threadId, forumId, forumSlug, createdTime)
 		err := row.Scan(&tres.Created, &tres.Id)
 		common.Check(err)
 
@@ -140,6 +154,7 @@ func Create(c *routing.Context) (string, int) {
 		res = append(res, tres)
 	}
 
+	transaction.Commit()
 	content, _ := json.Marshal(res)
 	return string(content), 201
 }
@@ -264,15 +279,11 @@ func Details(c *routing.Context) (string, int) {
 			var tThread ThreadStruct
 			err := row.Scan(&tThread.Author, &tThread.ForumSlug, &tThread.Title, &tThread.Created, &tThread.Message, &tThread.Id, &tThread.Slug)
 			result.Thread = &tThread
-			switch err {
-			case pgx.ErrNoRows:
+			if err == pgx.ErrNoRows {
 				var res common.ErrStruct
 				res.Message = "Can't found post thread."
 				content, _ := json.Marshal(res)
 				return string(content), 404
-			case nil:
-			default:
-				panic(err)
 			}
 		}
 		content, _ := json.Marshal(result)
