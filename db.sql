@@ -3,18 +3,23 @@ CREATE TABLE IF NOT EXISTS users (
 	about TEXT DEFAULT NULL,
 	email CITEXT UNIQUE,
 	fullname TEXT DEFAULT NULL,
-	nickname CITEXT COLLATE ucs_basic UNIQUE
+	nickname CITEXT NOT NULL
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS users_nickname_uindex ON users (nickname);
+CREATE INDEX IF NOT EXISTS users_id_nickname_index ON users (id, nickname);
 
 CREATE TABLE IF NOT EXISTS forums (
 	id SERIAL PRIMARY KEY,
 	owner_id INTEGER REFERENCES users (id) ON DELETE CASCADE NOT NULL,
 	owner_nickname CITEXT,
 	title TEXT NOT NULL,
-	slug CITEXT UNIQUE NOT NULL,
+	slug CITEXT NOT NULL,
 	posts_count INTEGER DEFAULT 0,
 	threads_count INTEGER DEFAULT 0
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS forums_slug_uindex ON forums (slug);
 
 CREATE TABLE IF NOT EXISTS threads (
 	id SERIAL PRIMARY KEY,
@@ -29,10 +34,11 @@ CREATE TABLE IF NOT EXISTS threads (
 	slug CITEXT DEFAULT NULL :: CITEXT
 );
 
-CREATE INDEX IF NOT EXISTS threads_id ON threads (id);
+CREATE INDEX IF NOT EXISTS threads_slug_index ON threads (slug);
 CREATE INDEX IF NOT EXISTS threads_forum_slug_index ON threads (forum_slug);
-CREATE INDEX IF NOT EXISTS threadss_forum_id_index ON threads (forum_id);
-CREATE INDEX IF NOT EXISTS threadss_created_index ON threads (created);		
+CREATE INDEX IF NOT EXISTS threads_forum_id_index ON threads (forum_id);
+CREATE INDEX IF NOT EXISTS threads_created_index ON threads (created);	
+CREATE INDEX IF NOT EXISTS threads_forum_created_index ON threads (forum_slug, created);		
 
 
 CREATE TABLE IF NOT EXISTS posts (
@@ -49,21 +55,28 @@ CREATE TABLE IF NOT EXISTS posts (
 	path_to_post INTEGER []
 );
 
-CREATE INDEX IF NOT EXISTS posts_fourum_slug_index ON posts (id, forum_slug);
-CREATE INDEX IF NOT EXISTS posts_fourum_id_index ON posts (id, forum_id);
-CREATE INDEX IF NOT EXISTS posts_thread_id_index ON posts (id, thread_id);
+CREATE INDEX IF NOT EXISTS posts_forum_slug_index ON posts (id, forum_slug);
+CREATE INDEX IF NOT EXISTS posts_forum_id_index ON posts (id, forum_id);
+CREATE INDEX IF NOT EXISTS posts_parent_id_index ON posts (parent_id);
+CREATE INDEX IF NOT EXISTS posts_thread_id_index ON posts (thread_id);
+CREATE INDEX IF NOT EXISTS posts_thread_id_id_index ON posts (thread_id, id);
+CREATE INDEX IF NOT EXISTS posts_thread_id_path_index ON posts (thread_id, path_to_post);
+CREATE INDEX IF NOT EXISTS posts_thread_id_parent_id_index ON posts (thread_id, parent_id);
+CREATE INDEX IF NOT EXISTS posts_thread_id_parent_id_path_index ON posts (thread_id, parent_id, path_to_post);
 
 CREATE TABLE IF NOT EXISTS forum_users (
 	user_id INTEGER REFERENCES users (id) ON DELETE CASCADE NOT NULL,
-	forum_id INTEGER REFERENCES forums (id) ON DELETE CASCADE NOT NULL,
-	CONSTRAINT user_forum UNIQUE (user_id, forum_id)
+	forum_id INTEGER REFERENCES forums (id) ON DELETE CASCADE NOT NULL
+	--CONSTRAINT user_forum UNIQUE (user_id, forum_id)
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS forum_users_id_id ON forum_users (user_id, forum_id);
 
 CREATE TABLE IF NOT EXISTS thread_votes (
 	id SERIAL PRIMARY KEY,
 	user_nickname CITEXT REFERENCES users (nickname) ON DELETE CASCADE NOT NULL,
 	thread_id INTEGER REFERENCES threads (id) ON DELETE CASCADE NOT NULL,
-	CONSTRAINT user_thread UNIQUE (user_nickname, thread_id),
+	--CONSTRAINT user_thread UNIQUE (user_nickname, thread_id),
 	vote INTEGER
 );
 
