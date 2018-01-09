@@ -27,8 +27,8 @@ type VoteStruct struct {
 }
 
 const insertStatement = "INSERT INTO threads (author_id, author_name, forum_id, forum_slug, title, created, message, slug) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id"
-const selectStatementSlug = "SELECT id, created, message, title, author_name, forum_slug, votes FROM threads WHERE slug=$1"
-const selectStatementID = "SELECT id, created, message, title, author_name, forum_slug, votes FROM threads WHERE id=$1"
+const selectStatementSlug = "SELECT id, slug, created, message, title, author_name, forum_slug, votes FROM threads WHERE slug=$1"
+const selectStatementID = "SELECT id, slug, created, message, title, author_name, forum_slug, votes FROM threads WHERE id=$1"
 const selectStatementForumSlugId = "SELECT id, slug FROM forums WHERE slug=$1"
 
 func getPost(c *routing.Context) ThreadStruct {
@@ -115,7 +115,7 @@ func CreateThread(c *routing.Context) (string, int) {
 			if len(slug) > 0 {
 				row = db.QueryRow(insertStatement, authorId, author, forumId, forumSlug, title, created, message, slug)
 			} else {
-				row = db.QueryRow(insertStatement, authorId, author, forumId, forumSlug, title, created, message, nil)
+				row = db.QueryRow(insertStatement, authorId, author, forumId, forumSlug, title, created, message, "")
 			}
 			err := row.Scan(&res.Id)
 			common.Check(err)
@@ -151,7 +151,7 @@ func getThread(slug string) (error, ThreadStruct) {
 		row = db.QueryRow(selectStatementID, id)
 	}
 
-	err := row.Scan(&res.Id, &res.Created, &res.Message, &res.Title, &res.Author, &res.ForumSlug, &res.Votes)
+	err := row.Scan(&res.Id, &res.Slug, &res.Created, &res.Message, &res.Title, &res.Author, &res.ForumSlug, &res.Votes)
 	return err, res
 }
 
@@ -238,7 +238,7 @@ func GetThreads(c *routing.Context) (string, int) {
 	forumSlug := c.Param("slug")
 	forumId, forumSlug := GetForumSlugId(forumSlug)
 	if forumId >= 0 {
-		selectStatementThreads := "SELECT id, author_name, title, created, message, slug FROM threads WHERE forum_slug='" + forumSlug + "'"
+		selectStatementThreads := "SELECT id, author_name, title, created, message, votes, slug FROM threads WHERE forum_slug='" + forumSlug + "'"
 
 		desc := c.Query("desc")
 		since := c.Query("since")
@@ -264,21 +264,22 @@ func GetThreads(c *routing.Context) (string, int) {
 		}
 
 		res := make([]ThreadStruct, 0)
-		rows, err := db.Query(selectStatementThreads)
+
+		rows, _ := db.Query(selectStatementThreads)
 		for rows.Next() {
 			var tts ThreadStruct
-			err = rows.Scan(&tts.Id, &tts.Author, &tts.Title, &tts.Created, &tts.Message, &tts.Slug)
+			rows.Scan(&tts.Id, &tts.Author, &tts.Title, &tts.Created, &tts.Message, &tts.Votes, &tts.Slug)
 			tts.ForumSlug = forumSlug
-			common.Check(err)
 			res = append(res, tts)
 		}
 		content, _ := json.Marshal(res)
 		return string(content), 200
+	} else {
+		var res common.ErrStruct
+		res.Message = "Can't find forum with given slug!"
+		content, _ := json.Marshal(res)
+		return string(content), 404
 	}
-	var res common.ErrStruct
-	res.Message = "Can't find forum with given slug!"
-	content, _ := json.Marshal(res)
-	return string(content), 404
 }
 
 func Vote(c *routing.Context) (string, int) {
@@ -324,7 +325,8 @@ func Vote(c *routing.Context) (string, int) {
 			row = transaction.QueryRow(selectStatementID, ids)
 		}
 
-		row.Scan(&res.Id, &res.Created, &res.Message, &res.Title, &res.Author, &res.ForumSlug, &res.Votes)
+		err := row.Scan(&res.Id, &res.Slug, &res.Created, &res.Message, &res.Title, &res.Author, &res.ForumSlug, &res.Votes)
+		common.Check(err)
 
 		content, _ := json.Marshal(res)
 		transaction.Commit()

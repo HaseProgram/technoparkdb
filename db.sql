@@ -26,13 +26,13 @@ CREATE TABLE IF NOT EXISTS threads (
 	created TIMESTAMPTZ DEFAULT NOW(),
 	message TEXT DEFAULT NULL,
 	votes INTEGER DEFAULT 0,
-	slug CITEXT UNIQUE
+	slug CITEXT DEFAULT NULL :: CITEXT
 );
 
 CREATE INDEX IF NOT EXISTS threads_id ON threads (id);
 CREATE INDEX IF NOT EXISTS threads_forum_slug_index ON threads (forum_slug);
 CREATE INDEX IF NOT EXISTS threadss_forum_id_index ON threads (forum_id);
-CREATE INDEX IF NOT EXISTS threadss_created_index ON threads (created);
+CREATE INDEX IF NOT EXISTS threadss_created_index ON threads (created);		
 
 
 CREATE TABLE IF NOT EXISTS posts (

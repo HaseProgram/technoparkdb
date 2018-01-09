@@ -220,6 +220,7 @@ func Details(c *routing.Context) (string, int) {
 		ForumSlug string `json:"forum,omitempty"`
 		Message string `json:"message,omitempty"`
 		Created time.Time `json:"created,omitempty"`
+		Votes int `json:"votes,omitempty"`
 	}
 	var result struct {
 		Post PostStruct `json:"post"`
@@ -228,9 +229,9 @@ func Details(c *routing.Context) (string, int) {
 		Thread *ThreadStruct `json:"thread,omitempty"`
 	}
 
-	selectStatement := `SELECT author_id, author_name, created, forum_slug, thread_id, is_edited, message, id FROM posts WHERE id=$1`
+	selectStatement := `SELECT author_id, author_name, created, forum_slug, thread_id, is_edited, message, id, parent_id FROM posts WHERE id=$1`
 	row := db.QueryRow(selectStatement, postID)
-	err := row.Scan(&result.Post.AuthorId, &result.Post.AuthorName, &result.Post.Created, &result.Post.ForumSlug, &result.Post.ThreadId, &result.Post.Edited, &result.Post.Message, &result.Post.Id)
+	err := row.Scan(&result.Post.AuthorId, &result.Post.AuthorName, &result.Post.Created, &result.Post.ForumSlug, &result.Post.ThreadId, &result.Post.Edited, &result.Post.Message, &result.Post.Id, &result.Post.ParentId)
 
 	switch err {
 	case pgx.ErrNoRows:
@@ -274,10 +275,10 @@ func Details(c *routing.Context) (string, int) {
 			}
 		}
 		if _, ok := related["thread"]; ok {
-			selectStatement = `SELECT author_name, forum_slug, title, created, message, id, slug FROM threads WHERE id=$1`
+			selectStatement = `SELECT author_name, forum_slug, title, created, message, id, slug, votes FROM threads WHERE id=$1`
 			row := db.QueryRow(selectStatement, result.Post.ThreadId)
 			var tThread ThreadStruct
-			err := row.Scan(&tThread.Author, &tThread.ForumSlug, &tThread.Title, &tThread.Created, &tThread.Message, &tThread.Id, &tThread.Slug)
+			err := row.Scan(&tThread.Author, &tThread.ForumSlug, &tThread.Title, &tThread.Created, &tThread.Message, &tThread.Id, &tThread.Slug, &tThread.Votes)
 			result.Thread = &tThread
 			if err == pgx.ErrNoRows {
 				var res common.ErrStruct
