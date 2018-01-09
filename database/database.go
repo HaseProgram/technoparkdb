@@ -2,11 +2,13 @@ package database
 
 import (
 	"github.com/jackc/pgx"
+	"runtime"
 )
 
 var DB *pgx.ConnPool
 
 func Connect() {
+	runtime.GOMAXPROCS(runtime.NumCPU())
 	connection := pgx.ConnConfig{
 		Host: "localhost",
 		User: "postgres",

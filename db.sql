@@ -29,6 +29,12 @@ CREATE TABLE IF NOT EXISTS threads (
 	slug CITEXT UNIQUE
 );
 
+CREATE INDEX IF NOT EXISTS threads_id ON threads (id);
+CREATE INDEX IF NOT EXISTS threads_forum_slug_index ON threads (forum_slug);
+CREATE INDEX IF NOT EXISTS threadss_forum_id_index ON threads (forum_id);
+CREATE INDEX IF NOT EXISTS threadss_created_index ON threads (created);
+
+
 CREATE TABLE IF NOT EXISTS posts (
 	id SERIAL PRIMARY KEY,
 	parent_id INTEGER DEFAULT 0,
@@ -43,6 +49,10 @@ CREATE TABLE IF NOT EXISTS posts (
 	path_to_post INTEGER []
 );
 
+CREATE INDEX IF NOT EXISTS posts_fourum_slug_index ON posts (id, forum_slug);
+CREATE INDEX IF NOT EXISTS posts_fourum_id_index ON posts (id, forum_id);
+CREATE INDEX IF NOT EXISTS posts_thread_id_index ON posts (id, thread_id);
+
 CREATE TABLE IF NOT EXISTS forum_users (
 	user_id INTEGER REFERENCES users (id) ON DELETE CASCADE NOT NULL,
 	forum_id INTEGER REFERENCES forums (id) ON DELETE CASCADE NOT NULL,
@@ -56,6 +66,8 @@ CREATE TABLE IF NOT EXISTS thread_votes (
 	CONSTRAINT user_thread UNIQUE (user_nickname, thread_id),
 	vote INTEGER
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS voyes_thread_user_uindex ON thread_votes (user_nickname, thread_id);
 
 CREATE OR REPLACE FUNCTION update_thread_func() RETURNS TRIGGER AS
 $update_thread_trig$

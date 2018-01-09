@@ -27,8 +27,8 @@ type VoteStruct struct {
 }
 
 const insertStatement = "INSERT INTO threads (author_id, author_name, forum_id, forum_slug, title, created, message, slug) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id"
-const selectStatementSlug = "SELECT id, slug, created, message, title, author_name, forum_slug, votes FROM threads WHERE slug=$1"
-const selectStatementID = "SELECT id, slug, created, message, title, author_name, forum_slug, votes FROM threads WHERE id=$1"
+const selectStatementSlug = "SELECT id, created, message, title, author_name, forum_slug, votes FROM threads WHERE slug=$1"
+const selectStatementID = "SELECT id, created, message, title, author_name, forum_slug, votes FROM threads WHERE id=$1"
 const selectStatementForumSlugId = "SELECT id, slug FROM forums WHERE slug=$1"
 
 func getPost(c *routing.Context) ThreadStruct {
@@ -151,7 +151,7 @@ func getThread(slug string) (error, ThreadStruct) {
 		row = db.QueryRow(selectStatementID, id)
 	}
 
-	err := row.Scan(&res.Id, &res.Slug, &res.Created, &res.Message, &res.Title, &res.Author, &res.ForumSlug, &res.Votes)
+	err := row.Scan(&res.Id, &res.Created, &res.Message, &res.Title, &res.Author, &res.ForumSlug, &res.Votes)
 	return err, res
 }
 
@@ -289,32 +289,45 @@ func Vote(c *routing.Context) (string, int) {
 	voice := POST.Vote
 	slug := c.Param("slugid")
 	slugId, ierr := strconv.Atoi(slug)
+	transaction, _ := db.Begin()
+
 	if ierr != nil {
 		selectStatement := "SELECT id FROM threads WHERE slug=$1"
-		err := db.QueryRow(selectStatement, slug).Scan(&slugId)
+		err := transaction.QueryRow(selectStatement, slug).Scan(&slugId)
 		if err == pgx.ErrNoRows {
 			var resErr common.ErrStruct
 			resErr.Message = "Thread or user not found!"
 			content, _ := json.Marshal(resErr)
+			transaction.Rollback()
 			return string(content), 404
 		}
 	}
 
-
 	id := -1
 	var insertStatement string
 	insertStatement = "INSERT INTO thread_votes (user_nickname, thread_id, vote) VALUES ($1,$2,$3) ON CONFLICT (user_nickname, thread_id) DO UPDATE SET vote=$3 RETURNING id"
-	db.QueryRow(insertStatement, nickname, slugId, voice).Scan(&id)
+	transaction.QueryRow(insertStatement, nickname, slugId, voice).Scan(&id)
 
 	if id < 0 {
+		transaction.Rollback()
 		var resErr common.ErrStruct
 		resErr.Message = "Thread or user not found!"
 		content, _ := json.Marshal(resErr)
 		return string(content), 404
+	} else {
+		ids, ierr := strconv.Atoi(slug)
+		var res ThreadStruct
+		var row *pgx.Row
+		if ierr != nil {
+			row = transaction.QueryRow(selectStatementSlug, slug)
+		} else {
+			row = transaction.QueryRow(selectStatementID, ids)
+		}
+
+		row.Scan(&res.Id, &res.Created, &res.Message, &res.Title, &res.Author, &res.ForumSlug, &res.Votes)
+
+		content, _ := json.Marshal(res)
+		transaction.Commit()
+		return string(content), 200
 	}
-
-	_, res := getThread(slug)
-	content, _ := json.Marshal(res)
-	return string(content), 200
-
 }
