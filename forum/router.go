@@ -2,7 +2,7 @@ package forum
 
 import (
 	"github.com/go-ozzo/ozzo-routing"
-	"technoparkdb/thread"
+	"github.com/HaseProgram/technoparkdb/thread"
 )
 
 func  Route(router *routing.Router) {

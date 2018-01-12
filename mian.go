@@ -4,13 +4,13 @@ import (
 	"net/http"
 	"github.com/go-ozzo/ozzo-routing"
 	"github.com/go-ozzo/ozzo-routing/slash"
-	"technoparkdb/user"
+	"github.com/HaseProgram/technoparkdb/user"
 
-	"technoparkdb/forum"
-	"technoparkdb/thread"
-	"technoparkdb/database"
-	"technoparkdb/post"
-	"technoparkdb/service"
+	"github.com/HaseProgram/technoparkdb/forum"
+	"github.com/HaseProgram/technoparkdb/thread"
+	"github.com/HaseProgram/technoparkdb/database"
+	"github.com/HaseProgram/technoparkdb/post"
+	"github.com/HaseProgram/technoparkdb/service"
 	_ "net/http/pprof"
 )
 
@@ -18,7 +18,7 @@ var router *routing.Router
 
 func main() {
 	database.Connect()
-	defer database.DB.Close()
+	//defer database.DB.Close()
 	router := routing.New()
 	router.Use(
 		slash.Remover(http.StatusMovedPermanently),

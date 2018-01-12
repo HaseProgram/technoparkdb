@@ -3,10 +3,10 @@ package post
 import (
 	"github.com/go-ozzo/ozzo-routing"
 	"encoding/json"
-	"technoparkdb/common"
+	"github.com/HaseProgram/technoparkdb/common"
 	"time"
-	"technoparkdb/user"
-	"technoparkdb/database"
+	"github.com/HaseProgram/technoparkdb/user"
+	"github.com/HaseProgram/technoparkdb/database"
 	"strconv"
 	"github.com/jackc/pgx"
 	"strings"
@@ -105,6 +105,8 @@ func Create(c *routing.Context) (string, int) {
 	var CheckPostArr []CheckPost
 	db.Prepare("select_user", "SELECT id, nickname FROM users WHERE nickname=$1")
 	db.Prepare("get_parent","SELECT thread_id FROM posts WHERE id=$1")
+
+	//batch := db.BeginBatch()
 	for _, post := range POST {
 		var ta CheckPost
 
@@ -153,6 +155,7 @@ func Create(c *routing.Context) (string, int) {
 		authorId := CheckPostArr[index].AuthorId
 		parentId := CheckPostArr[index].PostParentId
 		row := transaction.QueryRow("insert_post", authorId, author, message, parentId, threadId, forumId, forumSlug, createdTime)
+
 		err := row.Scan(&tres.Created, &tres.Id)
 		common.Check(err)
 

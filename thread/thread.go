@@ -3,8 +3,8 @@ package thread
 import (
 	"github.com/go-ozzo/ozzo-routing"
 	"encoding/json"
-	"technoparkdb/common"
-	"technoparkdb/database"
+	"github.com/HaseProgram/technoparkdb/common"
+	"github.com/HaseProgram/technoparkdb/database"
 	"github.com/jackc/pgx"
 	"time"
 	"strconv"

@@ -3,8 +3,8 @@ package user
 import (
 	"encoding/json"
 	"github.com/go-ozzo/ozzo-routing"
-	"technoparkdb/common"
-	"technoparkdb/database"
+	"github.com/HaseProgram/technoparkdb/common"
+	"github.com/HaseProgram/technoparkdb/database"
 	"github.com/jackc/pgx"
 )
 

@@ -2,7 +2,7 @@ package service
 
 import (
 	"github.com/go-ozzo/ozzo-routing"
-	"technoparkdb/database"
+	"github.com/HaseProgram/technoparkdb/database"
 	"encoding/json"
 	"github.com/jackc/pgx"
 )
