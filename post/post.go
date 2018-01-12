@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"github.com/jackc/pgx"
 	"strings"
+	"fmt"
 )
 
 type PostStruct struct {
@@ -102,9 +103,16 @@ func Create(c *routing.Context) (string, int) {
 	}
 
 	var CheckPostArr []CheckPost
+	db.Prepare("select_user", "SELECT id, nickname FROM users WHERE nickname=$1")
+	db.Prepare("get_parent","SELECT thread_id FROM posts WHERE id=$1")
 	for _, post := range POST {
 		var ta CheckPost
-		ta.AuthorId, ta.AuthorName = user.GetUserId(post.AuthorName)
+
+		ta.AuthorId = -1
+
+		row := db.QueryRow("select_user", post.AuthorName)
+		err := row.Scan(&ta.AuthorId, &ta.AuthorName)
+
 		if ta.AuthorId < 0 {
 			transaction.Rollback()
 			var res common.ErrStruct
@@ -114,8 +122,8 @@ func Create(c *routing.Context) (string, int) {
 		}
 		ta.PostParentId = post.ParentId
 		var parentThreadID int
-		row := transaction.QueryRow(selectStatement, post.ParentId)
-		err := row.Scan(&parentThreadID)
+		row = transaction.QueryRow("get_parent", post.ParentId)
+		err = row.Scan(&parentThreadID)
 		switch err {
 		case pgx.ErrNoRows:
 			parentThreadID = -1
@@ -136,13 +144,15 @@ func Create(c *routing.Context) (string, int) {
 
 	res := make([]PostStruct, 0)
 
+	db.Prepare("insert_post", insertStatement)
+
 	for index, post := range POST {
 		var tres PostStruct
 		message := post.Message
 		author := CheckPostArr[index].AuthorName
 		authorId := CheckPostArr[index].AuthorId
 		parentId := CheckPostArr[index].PostParentId
-		row := transaction.QueryRow(insertStatement, authorId, author, message, parentId, threadId, forumId, forumSlug, createdTime)
+		row := transaction.QueryRow("insert_post", authorId, author, message, parentId, threadId, forumId, forumSlug, createdTime)
 		err := row.Scan(&tres.Created, &tres.Id)
 		common.Check(err)
 
@@ -194,6 +204,7 @@ func Update(c *routing.Context) (string, int) {
 }
 
 func Details(c *routing.Context) (string, int) {
+	t0 := time.Now()
 	db := database.DB
 
 	postID := c.Param("id")
@@ -238,6 +249,8 @@ func Details(c *routing.Context) (string, int) {
 		var res common.ErrStruct
 		res.Message = "Can't found post."
 		content, _ := json.Marshal(res)
+		t1 := time.Now();
+		fmt.Println("Get post details (no post): ", t1.Sub(t0), "404");
 		return string(content), 404
 	case nil:
 		if _, ok := related["user"]; ok {
@@ -251,6 +264,8 @@ func Details(c *routing.Context) (string, int) {
 				var res common.ErrStruct
 				res.Message = "Can't found post author."
 				content, _ := json.Marshal(res)
+				t1 := time.Now();
+				fmt.Println("Get post details (no author): ", t1.Sub(t0), "404", relatedGet);
 				return string(content), 404
 			case nil:
 			default:
@@ -268,6 +283,8 @@ func Details(c *routing.Context) (string, int) {
 				var res common.ErrStruct
 				res.Message = "Can't found post forum."
 				content, _ := json.Marshal(res)
+				t1 := time.Now();
+				fmt.Println("Get post details (no forum): ", t1.Sub(t0), "404", relatedGet);
 				return string(content), 404
 			case nil:
 			default:
@@ -284,10 +301,14 @@ func Details(c *routing.Context) (string, int) {
 				var res common.ErrStruct
 				res.Message = "Can't found post thread."
 				content, _ := json.Marshal(res)
+				t1 := time.Now();
+				fmt.Println("Get post details (no thread): ", t1.Sub(t0), "404", relatedGet);
 				return string(content), 404
 			}
 		}
 		content, _ := json.Marshal(result)
+		t1 := time.Now();
+		fmt.Println("Get post details: ", t1.Sub(t0), "200", relatedGet);
 		return string(content), 200
 	default:
 		panic(err)
@@ -295,6 +316,7 @@ func Details(c *routing.Context) (string, int) {
 }
 
 func GetPosts(c *routing.Context) (string, int) {
+	t0 := time.Now()
 	db := database.DB
 
 	threadSlugId := c.Param("slugid")
@@ -347,7 +369,7 @@ func GetPosts(c *routing.Context) (string, int) {
 			selectStatement += " LIMIT " + limit
 		}
 	case "parent_tree":
-		selectStatement += " path_to_post[1] IN (SELECT id FROM posts WHERE thread_id=" + strconv.Itoa(threadId) + " AND parent_id=0"
+		selectStatement += " rootidx IN (SELECT id FROM posts WHERE thread_id=" + strconv.Itoa(threadId) + " AND parent_id=0"
 		if len(since) > 0 {
 			switch desc {
 			case "true":
@@ -395,5 +417,7 @@ func GetPosts(c *routing.Context) (string, int) {
 		res = append(res, tps)
 	}
 	content, _ := json.Marshal(res)
+	t1 := time.Now();
+	fmt.Println("Get posts: ", t1.Sub(t0), "200", limit, since, sort, desc, threadSlugId, selectStatement);
 	return string(content), 200
 }

@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx"
 	"time"
 	"strconv"
+	"fmt"
 )
 
 type ThreadStruct struct {
@@ -51,7 +52,7 @@ func getVotePost(c *routing.Context) VoteStruct {
 
 func GetForumSlugId(slug string) (int, string){
 	db := database.DB
-	row := db.QueryRow(selectStatementForumSlugId, slug)
+	row := db.QueryRow("SELECT id, slug FROM forums WHERE slug=$1", slug)
 	var id int
 	err := row.Scan(&id, &slug)
 	switch err {
@@ -173,6 +174,7 @@ func Details(c *routing.Context) (string, int) {
 }
 
 func Update(c *routing.Context) (string, int) {
+	t0 := time.Now()
 	db := database.DB
 	updateStatement := "UPDATE threads SET"
 
@@ -212,9 +214,13 @@ func Update(c *routing.Context) (string, int) {
 			var resErr common.ErrStruct
 			resErr.Message = "Thread not found!"
 			content, _ := json.Marshal(resErr)
+			t1 := time.Now();
+			fmt.Println("Get thread details update: ", t1.Sub(t0), "404", slug);
 			return string(content), 404
 		case nil:
 			content, _ := json.Marshal(resOk)
+			t1 := time.Now();
+			fmt.Println("Get thread details update: ", t1.Sub(t0), "200", slug);
 			return string(content), 200
 		}
 	}
@@ -224,9 +230,13 @@ func Update(c *routing.Context) (string, int) {
 		var res common.ErrStruct
 		res.Message = "Thread not found!"
 		content, _ := json.Marshal(res)
+		t1 := time.Now();
+		fmt.Println("Get thread details without update: ", t1.Sub(t0), "200", slug);
 		return string(content), 404
 	case nil:
 		content, _ := json.Marshal(res)
+		t1 := time.Now();
+		fmt.Println("Get thread details without update: ", t1.Sub(t0), "200", slug);
 		return string(content), 200
 	default:
 		panic(err)
@@ -234,6 +244,7 @@ func Update(c *routing.Context) (string, int) {
 }
 
 func GetThreads(c *routing.Context) (string, int) {
+	t0 := time.Now()
 	db := database.DB
 	forumSlug := c.Param("slug")
 	forumId, forumSlug := GetForumSlugId(forumSlug)
@@ -273,11 +284,15 @@ func GetThreads(c *routing.Context) (string, int) {
 			res = append(res, tts)
 		}
 		content, _ := json.Marshal(res)
+		t1 := time.Now();
+		fmt.Println("Get threads: ", t1.Sub(t0), "200", desc, since, limit, forumSlug);
 		return string(content), 200
 	} else {
 		var res common.ErrStruct
 		res.Message = "Can't find forum with given slug!"
 		content, _ := json.Marshal(res)
+		t1 := time.Now();
+		fmt.Println("Get threads: ", t1.Sub(t0), "404", forumSlug);
 		return string(content), 404
 	}
 }
@@ -292,17 +307,24 @@ func Vote(c *routing.Context) (string, int) {
 	slugId, ierr := strconv.Atoi(slug)
 	transaction, _ := db.Begin()
 
+	selectStatement := ""
+	var err error
 	if ierr != nil {
-		selectStatement := "SELECT id FROM threads WHERE slug=$1"
-		err := transaction.QueryRow(selectStatement, slug).Scan(&slugId)
-		if err == pgx.ErrNoRows {
-			var resErr common.ErrStruct
-			resErr.Message = "Thread or user not found!"
-			content, _ := json.Marshal(resErr)
-			transaction.Rollback()
-			return string(content), 404
-		}
+		selectStatement = "SELECT id FROM threads WHERE slug=$1"
+		err = transaction.QueryRow(selectStatement, slug).Scan(&slugId)
+	} else {
+		selectStatement = "SELECT id FROM threads WHERE id=$1"
+		err = transaction.QueryRow(selectStatement, slug).Scan(&slugId)
 	}
+
+	if err == pgx.ErrNoRows {
+		var resErr common.ErrStruct
+		resErr.Message = "Thread not found!"
+		content, _ := json.Marshal(resErr)
+		transaction.Rollback()
+		return string(content), 404
+	}
+
 
 	id := -1
 	var insertStatement string
@@ -325,8 +347,10 @@ func Vote(c *routing.Context) (string, int) {
 			row = transaction.QueryRow(selectStatementID, ids)
 		}
 
-		err := row.Scan(&res.Id, &res.Slug, &res.Created, &res.Message, &res.Title, &res.Author, &res.ForumSlug, &res.Votes)
-		common.Check(err)
+		scerr := row.Scan(&res.Id, &res.Slug, &res.Created, &res.Message, &res.Title, &res.Author, &res.ForumSlug, &res.Votes)
+		if scerr != nil {
+			panic(err)
+		}
 
 		content, _ := json.Marshal(res)
 		transaction.Commit()

@@ -8,7 +8,9 @@ import (
 	"technoparkdb/database"
 	"github.com/jackc/pgx"
 	"technoparkdb/thread"
-	"strconv"
+	"time"
+	"fmt"
+	"sync"
 )
 
 type ForumStruct struct {
@@ -74,6 +76,7 @@ func Create(c *routing.Context) (string, int) {
 }
 
 func Details(c *routing.Context) (string, int) {
+	t0 := time.Now();
 	db := database.DB
 	slug := c.Param("slug")
 	var res ForumStruct
@@ -83,23 +86,37 @@ func Details(c *routing.Context) (string, int) {
 	switch err {
 	case nil:
 		content, _ := json.Marshal(res)
+		t1 := time.Now();
+		fmt.Println("Forum details: ", t1.Sub(t0), "200");
 		return string(content), 200
 	case pgx.ErrNoRows:
 		var res common.ErrStruct
 		res.Message = "Forum not found!"
 		content, _ := json.Marshal(res)
+		t1 := time.Now();
+		fmt.Println("Forum details: ", t1.Sub(t0), "404");
 		return string(content), 404
 	default:
 		panic(err)
 	}
 }
 
+type UserA []*user.UserStruct
+
+var UPool = sync.Pool{
+	New: func() interface{} { return UserA{} },
+}
+
 func GetUsers(c *routing.Context) (string, int) {
+	t0 := time.Now()
+	resOk := UPool.Get().(UserA)
+	defer UPool.Put(resOk)
 	db := database.DB
 	forumSlug := c.Param("slug")
 	forumId, forumSlug := thread.GetForumSlugId(forumSlug)
 	if forumId >= 0 {
-		selectStatement := "SELECT about, email, fullname, nickname FROM users u JOIN forum_users fu ON (u.id = fu.user_id) WHERE fu.forum_id=" + strconv.Itoa(forumId)
+		//selectStatement := "SELECT about, email, fullname, nickname FROM users u JOIN forum_users fu ON (u.id = fu.user_id) WHERE fu.forum_id=$1"
+		selectStatement := "SELECT about, email, fullname, nickname FROM users u WHERE u.id IN (SELECT user_id FROM forum_users WHERE forum_id=$1)"
 
 		desc := c.Query("desc")
 		since := c.Query("since")
@@ -124,19 +141,23 @@ func GetUsers(c *routing.Context) (string, int) {
 			selectStatement += " LIMIT " + limit
 		}
 
-		res := make([]user.UserStruct, 0)
-		rows, err := db.Query(selectStatement)
+		//res := make([]user.UserStruct, 0)
+		rows, err := db.Query(selectStatement, forumId)
 		for rows.Next() {
 			var tus user.UserStruct
 			err = rows.Scan(&tus.About, &tus.Email, &tus.Fullname, &tus.Nickname)
 			common.Check(err)
-			res = append(res, tus)
+			resOk = append(resOk, &tus)
 		}
-		content, _ := json.Marshal(res)
+		content, _ := json.Marshal(resOk)
+		t1 := time.Now();
+		fmt.Println("Get users: ", t1.Sub(t0), "200", desc, since, limit, forumSlug, selectStatement);
 		return string(content), 200
 	}
 	var res common.ErrStruct
 	res.Message = "Can't find forum with given slug!"
 	content, _ := json.Marshal(res)
+	t1 := time.Now();
+	fmt.Println("Get users (no forum): ", t1.Sub(t0), "404", forumSlug);
 	return string(content), 404
 }

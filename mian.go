@@ -11,6 +11,7 @@ import (
 	"technoparkdb/database"
 	"technoparkdb/post"
 	"technoparkdb/service"
+	_ "net/http/pprof"
 )
 
 var router *routing.Router

@@ -37,10 +37,27 @@ func Status(c *routing.Context) (string, int) {
 
 func Clear(c *routing.Context) (string, int) {
 	db := database.DB
-	deleteStatement := "DELETE FROM users"
-	err := db.QueryRow(deleteStatement).Scan()
-	if err == pgx.ErrNoRows {
-		return "", 200
+	var sttms []string
+
+	deleteStatement := "DELETE FROM forums"
+	sttms = append(sttms, deleteStatement)
+	deleteStatement = "DELETE FROM threads"
+	sttms = append(sttms, deleteStatement)
+	deleteStatement = "DELETE FROM posts"
+	sttms = append(sttms, deleteStatement)
+	deleteStatement = "DELETE FROM forum_users"
+	sttms = append(sttms, deleteStatement)
+	deleteStatement = "DELETE FROM thread_votes"
+	sttms = append(sttms, deleteStatement)
+	deleteStatement = "DELETE FROM users"
+	sttms = append(sttms, deleteStatement)
+
+	for _, s := range sttms {
+		err := db.QueryRow(s).Scan()
+		if err != pgx.ErrNoRows {
+			return "", 409
+		}
 	}
-	return "", 409
+
+	return "", 200
 }
