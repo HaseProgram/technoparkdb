@@ -19,7 +19,7 @@ func Connect() {
 	}
 
 	var err error
-	DB, err = pgx.NewConnPool(pgx.ConnPoolConfig{ConnConfig: connection, MaxConnections: 10})
+	DB, err = pgx.NewConnPool(pgx.ConnPoolConfig{ConnConfig: connection, MaxConnections: 50})
 	if err != nil {
 		panic(err)
 	}

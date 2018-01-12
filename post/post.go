@@ -103,8 +103,8 @@ func Create(c *routing.Context) (string, int) {
 	}
 
 	var CheckPostArr []CheckPost
-	db.Prepare("select_user", "SELECT id, nickname FROM users WHERE nickname=$1")
-	db.Prepare("get_parent","SELECT thread_id FROM posts WHERE id=$1")
+	transaction.Prepare("select_user", "SELECT id, nickname FROM users WHERE nickname=$1")
+	transaction.Prepare("get_parent","SELECT thread_id FROM posts WHERE id=$1")
 
 	//batch := db.BeginBatch()
 	for _, post := range POST {
@@ -112,7 +112,7 @@ func Create(c *routing.Context) (string, int) {
 
 		ta.AuthorId = -1
 
-		row := db.QueryRow("select_user", post.AuthorName)
+		row := transaction.QueryRow("select_user", post.AuthorName)
 		err := row.Scan(&ta.AuthorId, &ta.AuthorName)
 
 		if ta.AuthorId < 0 {
@@ -146,7 +146,7 @@ func Create(c *routing.Context) (string, int) {
 
 	res := make([]PostStruct, 0)
 
-	db.Prepare("insert_post", insertStatement)
+	transaction.Prepare("insert_post", insertStatement)
 
 	for index, post := range POST {
 		var tres PostStruct

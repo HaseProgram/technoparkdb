@@ -5,13 +5,11 @@ import (
 	"github.com/go-ozzo/ozzo-routing"
 	"github.com/go-ozzo/ozzo-routing/slash"
 	"github.com/HaseProgram/technoparkdb/user"
-
 	"github.com/HaseProgram/technoparkdb/forum"
 	"github.com/HaseProgram/technoparkdb/thread"
 	"github.com/HaseProgram/technoparkdb/database"
 	"github.com/HaseProgram/technoparkdb/post"
 	"github.com/HaseProgram/technoparkdb/service"
-	_ "net/http/pprof"
 )
 
 var router *routing.Router
