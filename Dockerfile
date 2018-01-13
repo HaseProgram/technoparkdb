@@ -48,6 +48,7 @@ ENV PGUSER hasep
 ENV PGPASSWORD 126126
 EXPOSE 5000
 
-RUN cd $WORKP/ && psql -h localhost -f db.sql
+RUN /etc/init.d/postgresql start && cd $WORKP/ && psql -h localhost -f db.sql
+RUN /etc/init.d/postgresql stop
 
 CMD /etc/init.d/postgresql start && ./technoparkdb
