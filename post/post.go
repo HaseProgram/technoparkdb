@@ -78,7 +78,7 @@ func Create(c *routing.Context) (string, int) {
 	threadSlugId := c.Param("slugid")
 	_, err := strconv.Atoi(threadSlugId)
 
-	selectThreadStatement := "SELECT id, forum_id, forum_slug, slug from threads WHERE"
+	selectThreadStatement := "SELECT id, forum_id, forum_slug::text, slug::text from threads WHERE"
 	if err == nil {
 		selectThreadStatement += " id=" + threadSlugId
 	} else {
@@ -103,7 +103,7 @@ func Create(c *routing.Context) (string, int) {
 	}
 
 	var CheckPostArr []CheckPost
-	transaction.Prepare("select_user", "SELECT id, nickname FROM users WHERE nickname=$1")
+	transaction.Prepare("select_user", "SELECT id, nickname::text FROM users WHERE nickname=$1")
 	transaction.Prepare("get_parent","SELECT thread_id FROM posts WHERE id=$1")
 
 	//batch := db.BeginBatch()
@@ -182,7 +182,7 @@ func Update(c *routing.Context) (string, int) {
 	var res PostStruct
 	var statement string
 	var err error
-	statement = "SELECT message, author_name, created, forum_slug, id, thread_id FROM posts WHERE id=$1"
+	statement = "SELECT message::text, author_name::text, created, forum_slug::text, id, thread_id FROM posts WHERE id=$1"
 	row := db.QueryRow(statement, postID)
 	err = row.Scan(&res.Message, &res.AuthorName, &res.Created, &res.ForumSlug, &res.Id, &res.ThreadId)
 	switch err {
@@ -243,7 +243,7 @@ func Details(c *routing.Context) (string, int) {
 		Thread *ThreadStruct `json:"thread,omitempty"`
 	}
 
-	selectStatement := `SELECT author_id, author_name, created, forum_slug, thread_id, is_edited, message, id, parent_id FROM posts WHERE id=$1`
+	selectStatement := `SELECT author_id, author_name::text, created, forum_slug::text, thread_id, is_edited, message::text, id, parent_id FROM posts WHERE id=$1`
 	row := db.QueryRow(selectStatement, postID)
 	err := row.Scan(&result.Post.AuthorId, &result.Post.AuthorName, &result.Post.Created, &result.Post.ForumSlug, &result.Post.ThreadId, &result.Post.Edited, &result.Post.Message, &result.Post.Id, &result.Post.ParentId)
 
@@ -257,7 +257,7 @@ func Details(c *routing.Context) (string, int) {
 		return string(content), 404
 	case nil:
 		if _, ok := related["user"]; ok {
-			selectStatement = `SELECT about, email, fullname, nickname FROM users WHERE id=$1`
+			selectStatement = `SELECT about::text, email::text, fullname::text, nickname::text FROM users WHERE id=$1`
 			row := db.QueryRow(selectStatement, result.Post.AuthorId)
 			var tAuthor user.UserStruct
 			err := row.Scan(&tAuthor.About, &tAuthor.Email, &tAuthor.Fullname, &tAuthor.Nickname)
@@ -276,7 +276,7 @@ func Details(c *routing.Context) (string, int) {
 			}
 		}
 		if _, ok := related["forum"]; ok {
-			selectStatement = `SELECT owner_nickname, title, slug, posts_count, threads_count FROM forums WHERE slug=$1`
+			selectStatement = `SELECT owner_nickname::text, title::text, slug::text, posts_count, threads_count FROM forums WHERE slug=$1`
 			row := db.QueryRow(selectStatement, result.Post.ForumSlug)
 			var tForum ForumStruct
 			err := row.Scan(&tForum.User, &tForum.Title, &tForum.Slug, &tForum.Posts, &tForum.Threads)
@@ -295,7 +295,7 @@ func Details(c *routing.Context) (string, int) {
 			}
 		}
 		if _, ok := related["thread"]; ok {
-			selectStatement = `SELECT author_name, forum_slug, title, created, message, id, slug, votes FROM threads WHERE id=$1`
+			selectStatement = `SELECT author_name::text, forum_slug::text, title::text, created, message::text, id, slug::text, votes FROM threads WHERE id=$1`
 			row := db.QueryRow(selectStatement, result.Post.ThreadId)
 			var tThread ThreadStruct
 			err := row.Scan(&tThread.Author, &tThread.ForumSlug, &tThread.Title, &tThread.Created, &tThread.Message, &tThread.Id, &tThread.Slug, &tThread.Votes)
@@ -325,7 +325,7 @@ func GetPosts(c *routing.Context) (string, int) {
 	threadSlugId := c.Param("slugid")
 	_, err := strconv.Atoi(threadSlugId)
 
-	selectThreadStatement := "SELECT id, slug FROM threads WHERE"
+	selectThreadStatement := "SELECT id, slug::text FROM threads WHERE"
 	if err == nil {
 		selectThreadStatement += " id=" + threadSlugId
 	} else {
@@ -349,7 +349,7 @@ func GetPosts(c *routing.Context) (string, int) {
 	sort := c.Query("sort")
 	desc := c.Query("desc")
 
-	selectStatement := "SELECT created, id, is_edited, message, parent_id, author_id, thread_id, forum_slug, forum_id, author_name FROM posts WHERE"
+	selectStatement := "SELECT created, id, is_edited, message::text, parent_id, author_id, thread_id, forum_slug::text, forum_id, author_name::text FROM posts WHERE"
 
 	switch sort {
 	case "tree":

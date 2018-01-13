@@ -25,17 +25,7 @@ func Connect() {
 		panic(err)
 	}
 
-
-	rows, qerr := DB.Query("select indexname from pg_indexes")
-	if qerr != nil {
-		panic(qerr)
-	}
-	for rows.Next() {
-		var idx string
-		err = rows.Scan(&idx)
-		fmt.Println(idx)
-	}
-	//err = createShema()
+	err = createShema()
 	if err != nil {
 		panic(err)
 	}

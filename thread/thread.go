@@ -28,9 +28,9 @@ type VoteStruct struct {
 }
 
 const insertStatement = "INSERT INTO threads (author_id, author_name, forum_id, forum_slug, title, created, message, slug) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id"
-const selectStatementSlug = "SELECT id, slug, created, message, title, author_name, forum_slug, votes FROM threads WHERE slug=$1"
-const selectStatementID = "SELECT id, slug, created, message, title, author_name, forum_slug, votes FROM threads WHERE id=$1"
-const selectStatementForumSlugId = "SELECT id, slug FROM forums WHERE slug=$1"
+const selectStatementSlug = "SELECT id, slug::text, created, message::text, title::text, author_name::text, forum_slug::text, votes FROM threads WHERE slug=$1"
+const selectStatementID = "SELECT id, slug::text, created, message::text, title::text, author_name::text, forum_slug::text, votes FROM threads WHERE id=$1"
+const selectStatementForumSlugId = "SELECT id, slug::text FROM forums WHERE slug=$1"
 
 func getPost(c *routing.Context) ThreadStruct {
 	var POST ThreadStruct
@@ -52,7 +52,7 @@ func getVotePost(c *routing.Context) VoteStruct {
 
 func GetForumSlugId(slug string) (int, string){
 	db := database.DB
-	row := db.QueryRow("SELECT id, slug FROM forums WHERE slug=$1", slug)
+	row := db.QueryRow("SELECT id, slug::text FROM forums WHERE slug=$1", slug)
 	var id int
 	err := row.Scan(&id, &slug)
 	switch err {
@@ -67,7 +67,7 @@ func GetForumSlugId(slug string) (int, string){
 
 func getForumAuthorsInfo(author, slug string) (int, string, int, string){
 	db := database.DB
-	selectStatement :="SELECT forum.*, author.* FROM (SELECT id, slug FROM forums WHERE slug=$1) as forum, (SELECT id, nickname FROM users WHERE nickname=$2) as author"
+	selectStatement :="SELECT forum.*, author.* FROM (SELECT id, slug::text FROM forums WHERE slug=$1) as forum, (SELECT id, nickname::text FROM users WHERE nickname=$2) as author"
 	row := db.QueryRow(selectStatement, slug, author)
 	var forumID int
 	var authorID int
@@ -206,7 +206,7 @@ func Update(c *routing.Context) (string, int) {
 		orstate = " slug='" + slug + "'"
 	}
 	if UPD {
-		updateStatement += "' WHERE" + orstate + " RETURNING author_name, created, forum_slug, id, message, title, slug"
+		updateStatement += "' WHERE" + orstate + " RETURNING author_name::text, created, forum_slug::text, id, message::text, title::text, slug::text"
 		var resOk ThreadStruct
 		err := db.QueryRow(updateStatement).Scan(&resOk.Author, &resOk.Created, &resOk.ForumSlug, &resOk.Id, &resOk.Message, &resOk.Title, &resOk.Slug)
 		switch err {
@@ -249,7 +249,7 @@ func GetThreads(c *routing.Context) (string, int) {
 	forumSlug := c.Param("slug")
 	forumId, forumSlug := GetForumSlugId(forumSlug)
 	if forumId >= 0 {
-		selectStatementThreads := "SELECT id, author_name, title, created, message, votes, slug FROM threads WHERE forum_slug='" + forumSlug + "'"
+		selectStatementThreads := "SELECT id, author_name::text, title::text, created, message::text, votes, slug::text FROM threads WHERE forum_slug='" + forumSlug + "'"
 
 		desc := c.Query("desc")
 		since := c.Query("since")

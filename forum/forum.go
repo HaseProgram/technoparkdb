@@ -20,8 +20,8 @@ type ForumStruct struct {
 }
 
 const insertStatement = "INSERT INTO forums (owner_id, owner_nickname, title, slug) VALUES ($1,$2,$3,$4)"
-const selectStatementSlug = "SELECT slug, title FROM forums WHERE slug=$1"
-const selectStatementSlugAll = "SELECT slug, title, owner_nickname, posts_count, threads_count FROM forums WHERE slug=$1"
+const selectStatementSlug = "SELECT slug::text, title::text FROM forums WHERE slug=$1"
+const selectStatementSlugAll = "SELECT slug::text, title::text, owner_nickname::text, posts_count, threads_count FROM forums WHERE slug=$1"
 
 func getPost(c *routing.Context) ForumStruct {
 	var POST ForumStruct
@@ -114,7 +114,7 @@ func GetUsers(c *routing.Context) (string, int) {
 	forumId, forumSlug := thread.GetForumSlugId(forumSlug)
 	if forumId >= 0 {
 		//selectStatement := "SELECT about, email, fullname, nickname FROM users u JOIN forum_users fu ON (u.id = fu.user_id) WHERE fu.forum_id=$1"
-		selectStatement := "SELECT about, email, fullname, nickname FROM users u WHERE u.id IN (SELECT user_id FROM forum_users WHERE forum_id=$1)"
+		selectStatement := "SELECT about::text, email::text, fullname::text, nickname::text FROM users u WHERE u.id IN (SELECT user_id FROM forum_users WHERE forum_id=$1)"
 
 		desc := c.Query("desc")
 		since := c.Query("since")

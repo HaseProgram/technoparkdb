@@ -46,9 +46,9 @@ RUN go build
 ENV PGDATABASE dbproj
 ENV PGUSER hasep
 ENV PGPASSWORD 126126
-EXPOSE 5000
 
-RUN /etc/init.d/postgresql start && cd $WORKP/ && psql -h localhost -f db.sql
-RUN /etc/init.d/postgresql stop
+#RUN /etc/init.d/postgresql start && cd $WORKP/ && psql -h localhost -f db.sql
+#RUN /etc/init.d/postgresql stop
+EXPOSE 5000
 
 CMD /etc/init.d/postgresql start && ./technoparkdb

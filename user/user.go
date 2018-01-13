@@ -16,9 +16,9 @@ type UserStruct struct {
 }
 
 const insertStatement = "INSERT INTO users (about, email, fullname, nickname) VALUES ($1,$2,$3,$4)"
-const selectStatement = "SELECT about, email, fullname, nickname FROM users WHERE email=$1 OR nickname=$2"
-const selectStatementNickname = "SELECT about, email, fullname, nickname FROM users WHERE nickname=$1"
-const selectStatementNicknameId = "SELECT id, nickname FROM users WHERE nickname=$1"
+const selectStatement = "SELECT about::text, email::text, fullname::text, nickname::text FROM users WHERE email=$1 OR nickname=$2"
+const selectStatementNickname = "SELECT about::text, email::text, fullname::text, nickname::text FROM users WHERE nickname=$1"
+const selectStatementNicknameId = "SELECT id, nickname::text FROM users WHERE nickname=$1"
 
 func getPost(c *routing.Context) UserStruct {
 	var POST UserStruct
@@ -57,7 +57,7 @@ func Create(c *routing.Context) (string, int) {
 	row := db.QueryRow(insertStatement, about, email, fullname, nickname)
 	err := row.Scan()
 	if err != nil && err != pgx.ErrNoRows {
-		rows, selerr := db.Query("SELECT about, email, fullname, nickname FROM users WHERE email='" + email + "' OR nickname='" + nickname + "'")
+		rows, selerr := db.Query("SELECT about::text, email::text, fullname::text, nickname::text FROM users WHERE email='" + email + "' OR nickname='" + nickname + "'")
 		common.Check(selerr)
 
 		var res []UserStruct
@@ -141,7 +141,7 @@ func Update(c *routing.Context) (string, int) {
 	nickname := c.Param("nickname")
 
 	if UPD {
-		updateStatement += "' WHERE nickname='" + nickname + "' RETURNING about, email, fullname, nickname"
+		updateStatement += "' WHERE nickname='" + nickname + "' RETURNING about::text, email::text, fullname::text, nickname::text"
 		var resOk UserStruct
 		err := db.QueryRow(updateStatement).Scan(&resOk.About, &resOk.Email, &resOk.Fullname, &resOk.Nickname)
 		switch err {
