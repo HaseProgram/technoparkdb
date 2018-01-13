@@ -1,4 +1,4 @@
-FROM ubuntu:16.04
+FROM ubuntu:17.04
 
 MAINTAINER Dmitry Zaytsev
 
@@ -6,6 +6,9 @@ RUN apt-get -y update && apt-get install -y wget git
 
 
 ENV PGVER 10
+RUN echo 'deb http://apt.postgresql.org/pub/repos/apt/ xenial-pgdg main' >> /etc/apt/sources.list.d/pgdg.list
+RUN wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
+RUN apt-get update
 RUN apt-get install -q -y postgresql-$PGVER
 
 USER postgres
