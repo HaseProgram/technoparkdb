@@ -36,13 +36,12 @@ RUN apt-get install -q -y git golang-go
 ENV GOPATH /go
 
 RUN go get -u github.com/go-ozzo/ozzo-routing/...
-RUN go get -u github.com/jackc/pgx/...
-
 
 WORKDIR /go/src/github.com/HaseProgram/technoparkdb
 ADD . $GOPATH/src/github.com/HaseProgram/technoparkdb
-
-RUN go install github.com/HaseProgram/technoparkdb/
+COPY . .
+RUN go get ./...
+RUN go build
 
 EXPOSE 5000
 

@@ -12,7 +12,7 @@ func Connect() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	connection := pgx.ConnConfig{
 		Host: "localhost",
-		User: "postgres",
+		User: "hasep",
 		Password: "126126",
 		Database: "dbproj",
 		Port: 5432,
