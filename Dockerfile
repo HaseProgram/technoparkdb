@@ -14,7 +14,7 @@ RUN apt-get install -q -y git golang-go postgresql-10 postgresql-contrib-10
 USER postgres
 
 RUN /etc/init.d/postgresql start &&\
-    psql --command "CREATE USER postgres WITH SUPERUSER PASSWORD '126126';" &&\
+    psql --command "CREATE USER hasep WITH SUPERUSER PASSWORD '126126';" &&\
     createdb -O hasep dbproj &&\
     /etc/init.d/postgresql stop
 
