@@ -4,7 +4,6 @@ import (
 	"github.com/jackc/pgx"
 	"runtime"
 	"io/ioutil"
-	"fmt"
 )
 
 var DB *pgx.ConnPool
