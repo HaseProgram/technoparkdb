@@ -15,13 +15,13 @@ USER postgres
 
 RUN /etc/init.d/postgresql start &&\
     psql --command "CREATE USER hasep WITH SUPERUSER PASSWORD '126126';" &&\
-    createdb -O hasep dbproj &&\
+    createdb -E UTF8 -T template0 -O hasep dbproj &&\
     /etc/init.d/postgresql stop
 
 
-RUN echo "host all  all    0.0.0.0/0  md5" >> /etc/postgresql/$PGVER/main/pg_hba.conf
+RUN echo "local all all trust" > /etc/postgresql/10/main/pg_hba.conf
+RUN echo "host all all 0.0.0.0/0 trust" >> /etc/postgresql/10/main/pg_hba.conf
 RUN echo "listen_addresses='*'" >> /etc/postgresql/$PGVER/main/postgresql.conf
-
 RUN echo "autovacuum = off" >> /etc/postgresql/$PGVER/main/postgresql.conf
 RUN echo "fsync = off" >> /etc/postgresql/$PGVER/main/postgresql.conf
 RUN echo "full_page_writes = off" >> /etc/postgresql/$PGVER/main/postgresql.conf
@@ -48,4 +48,4 @@ ENV PGUSER hasep
 ENV PGPASSWORD 126126
 EXPOSE 5000
 
-CMD /etc/init.d/postgresql start && sleep 20 && ./technoparkdb
+CMD /etc/init.d/postgresql start && sleep 5 && ./technoparkdb
