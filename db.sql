@@ -72,9 +72,9 @@ CREATE INDEX IF NOT EXISTS posts_parent_id_index ON posts (parent_id);
 CREATE INDEX IF NOT EXISTS posts_thread_id_index ON posts (thread_id);
 CREATE INDEX IF NOT EXISTS posts_thread_id_id_index ON posts (thread_id, id);
 CREATE INDEX IF NOT EXISTS posts_root_index ON posts (rootidx);
---CREATE INDEX IF NOT EXISTS posts_thread_id_path_index ON posts (thread_id, path_to_post);
---CREATE INDEX IF NOT EXISTS posts_thread_id_parent_id_index ON posts (thread_id, parent_id);
---CREATE INDEX IF NOT EXISTS posts_thread_id_parent_id_path_index ON posts (thread_id, parent_id, path_to_post);
+CREATE INDEX IF NOT EXISTS posts_thread_id_path_index ON posts (thread_id, path_to_post);
+CREATE INDEX IF NOT EXISTS posts_thread_id_parent_id_index ON posts (thread_id, parent_id);
+CREATE INDEX IF NOT EXISTS posts_thread_id_parent_id_path_index ON posts (thread_id, parent_id, path_to_post);
 
 CREATE TABLE IF NOT EXISTS forum_users (
 	user_id INTEGER NOT NULL,
