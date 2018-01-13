@@ -43,6 +43,9 @@ COPY . .
 RUN go get ./...
 RUN go build
 
+ENV PGDATABASE dbproj
+ENV PGUSER hasep
+ENV PGPASSWORD 126126
 EXPOSE 5000
 
 CMD /etc/init.d/postgresql start && sleep 20 && ./technoparkdb
