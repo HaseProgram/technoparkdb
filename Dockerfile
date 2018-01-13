@@ -28,7 +28,7 @@ EXPOSE 5432
 USER root
 
 # INSTALL GO
-apt-get install -q -y git golang-go
+RUN apt-get install -q -y git golang-go
 
 ENV GOPATH /go
 
