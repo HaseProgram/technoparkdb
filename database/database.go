@@ -26,7 +26,10 @@ func Connect() {
 	}
 
 
-	rows, _ := DB.Query("select indexname from pg_indexes")
+	rows, qerr := DB.Query("select indexname from pg_indexes")
+	if qerr != nil {
+		panic(qerr)
+	}
 	for rows.Next() {
 		var idx string
 		err = rows.Scan(&idx)
