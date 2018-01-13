@@ -207,7 +207,7 @@ func Update(c *routing.Context) (string, int) {
 }
 
 func Details(c *routing.Context) (string, int) {
-	t0 := time.Now()
+	//t0 := time.Now()
 	db := database.DB
 
 	postID := c.Param("id")
@@ -252,8 +252,8 @@ func Details(c *routing.Context) (string, int) {
 		var res common.ErrStruct
 		res.Message = "Can't found post."
 		content, _ := json.Marshal(res)
-		t1 := time.Now();
-		fmt.Println("Get post details (no post): ", t1.Sub(t0), "404");
+		//t1 := time.Now();
+		//fmt.Println("Get post details (no post): ", t1.Sub(t0), "404");
 		return string(content), 404
 	case nil:
 		if _, ok := related["user"]; ok {
@@ -267,8 +267,8 @@ func Details(c *routing.Context) (string, int) {
 				var res common.ErrStruct
 				res.Message = "Can't found post author."
 				content, _ := json.Marshal(res)
-				t1 := time.Now();
-				fmt.Println("Get post details (no author): ", t1.Sub(t0), "404", relatedGet);
+				//t1 := time.Now();
+				//fmt.Println("Get post details (no author): ", t1.Sub(t0), "404", relatedGet);
 				return string(content), 404
 			case nil:
 			default:
@@ -286,8 +286,8 @@ func Details(c *routing.Context) (string, int) {
 				var res common.ErrStruct
 				res.Message = "Can't found post forum."
 				content, _ := json.Marshal(res)
-				t1 := time.Now();
-				fmt.Println("Get post details (no forum): ", t1.Sub(t0), "404", relatedGet);
+				//t1 := time.Now();
+				//fmt.Println("Get post details (no forum): ", t1.Sub(t0), "404", relatedGet);
 				return string(content), 404
 			case nil:
 			default:
@@ -304,14 +304,14 @@ func Details(c *routing.Context) (string, int) {
 				var res common.ErrStruct
 				res.Message = "Can't found post thread."
 				content, _ := json.Marshal(res)
-				t1 := time.Now();
-				fmt.Println("Get post details (no thread): ", t1.Sub(t0), "404", relatedGet);
+				//t1 := time.Now();
+				//fmt.Println("Get post details (no thread): ", t1.Sub(t0), "404", relatedGet);
 				return string(content), 404
 			}
 		}
 		content, _ := json.Marshal(result)
-		t1 := time.Now();
-		fmt.Println("Get post details: ", t1.Sub(t0), "200", relatedGet);
+		//t1 := time.Now();
+		//fmt.Println("Get post details: ", t1.Sub(t0), "200", relatedGet);
 		return string(content), 200
 	default:
 		panic(err)
@@ -421,6 +421,6 @@ func GetPosts(c *routing.Context) (string, int) {
 	}
 	content, _ := json.Marshal(res)
 	t1 := time.Now();
-	fmt.Println("Get posts: ", t1.Sub(t0), "200", limit, since, sort, desc, threadSlugId, selectStatement);
+	fmt.Println("Get posts: ", t1.Sub(t0), selectStatement);
 	return string(content), 200
 }
