@@ -4,6 +4,7 @@ import (
 	"github.com/jackc/pgx"
 	"runtime"
 	"io/ioutil"
+	"fmt"
 )
 
 var DB *pgx.ConnPool
@@ -22,6 +23,14 @@ func Connect() {
 	DB, err = pgx.NewConnPool(pgx.ConnPoolConfig{ConnConfig: connection, MaxConnections: 50})
 	if err != nil {
 		panic(err)
+	}
+
+
+	rows, _ := DB.Query("select indexname from pg_indexes")
+	for rows.Next() {
+		var idx string
+		err = rows.Scan(&idx)
+		fmt.Println(idx)
 	}
 	//err = createShema()
 	if err != nil {
