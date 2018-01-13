@@ -45,4 +45,4 @@ RUN go build
 
 EXPOSE 5000
 
-CMD /etc/init.d/postgresql start && ./technoparkdb
+CMD /etc/init.d/postgresql start && sleep 20 && ./technoparkdb
