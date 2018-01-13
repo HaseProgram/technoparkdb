@@ -23,7 +23,7 @@ func Connect() {
 	if err != nil {
 		panic(err)
 	}
-	err = createShema()
+	//err = createShema()
 	if err != nil {
 		panic(err)
 	}

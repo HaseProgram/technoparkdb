@@ -36,6 +36,7 @@ ENV GOPATH /go
 
 RUN go get -u github.com/go-ozzo/ozzo-routing/...
 
+ENV WORKP /go/src/github.com/HaseProgram/technoparkdb
 WORKDIR /go/src/github.com/HaseProgram/technoparkdb
 ADD . $GOPATH/src/github.com/HaseProgram/technoparkdb
 COPY . .
@@ -47,4 +48,4 @@ ENV PGUSER hasep
 ENV PGPASSWORD 126126
 EXPOSE 5000
 
-CMD /etc/init.d/postgresql start && ./technoparkdb
+CMD /etc/init.d/postgresql start && cd $WORKP/ && psql -h localhost -f db.sql && ./technoparkdb
