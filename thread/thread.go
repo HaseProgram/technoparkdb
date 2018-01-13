@@ -8,7 +8,7 @@ import (
 	"github.com/jackc/pgx"
 	"time"
 	"strconv"
-	"fmt"
+	//"fmt"
 )
 
 type ThreadStruct struct {
@@ -174,7 +174,7 @@ func Details(c *routing.Context) (string, int) {
 }
 
 func Update(c *routing.Context) (string, int) {
-	t0 := time.Now()
+	//t0 := time.Now()
 	db := database.DB
 	updateStatement := "UPDATE threads SET"
 
@@ -214,13 +214,13 @@ func Update(c *routing.Context) (string, int) {
 			var resErr common.ErrStruct
 			resErr.Message = "Thread not found!"
 			content, _ := json.Marshal(resErr)
-			t1 := time.Now();
-			fmt.Println("Get thread details update: ", t1.Sub(t0), "404", slug);
+			//t1 := time.Now();
+			//fmt.Println("Get thread details update: ", t1.Sub(t0), "404", slug);
 			return string(content), 404
 		case nil:
 			content, _ := json.Marshal(resOk)
-			t1 := time.Now();
-			fmt.Println("Get thread details update: ", t1.Sub(t0), "200", slug);
+			//t1 := time.Now();
+			//fmt.Println("Get thread details update: ", t1.Sub(t0), "200", slug);
 			return string(content), 200
 		}
 	}
@@ -230,13 +230,13 @@ func Update(c *routing.Context) (string, int) {
 		var res common.ErrStruct
 		res.Message = "Thread not found!"
 		content, _ := json.Marshal(res)
-		t1 := time.Now();
-		fmt.Println("Get thread details without update: ", t1.Sub(t0), "200", slug);
+		//t1 := time.Now();
+		//fmt.Println("Get thread details without update: ", t1.Sub(t0), "200", slug);
 		return string(content), 404
 	case nil:
 		content, _ := json.Marshal(res)
-		t1 := time.Now();
-		fmt.Println("Get thread details without update: ", t1.Sub(t0), "200", slug);
+		//t1 := time.Now();
+		//fmt.Println("Get thread details without update: ", t1.Sub(t0), "200", slug);
 		return string(content), 200
 	default:
 		panic(err)
@@ -244,7 +244,7 @@ func Update(c *routing.Context) (string, int) {
 }
 
 func GetThreads(c *routing.Context) (string, int) {
-	t0 := time.Now()
+	//t0 := time.Now()
 	db := database.DB
 	forumSlug := c.Param("slug")
 	forumId, forumSlug := GetForumSlugId(forumSlug)
@@ -284,15 +284,15 @@ func GetThreads(c *routing.Context) (string, int) {
 			res = append(res, tts)
 		}
 		content, _ := json.Marshal(res)
-		t1 := time.Now();
-		fmt.Println("Get threads: ", t1.Sub(t0), "200", desc, since, limit, forumSlug);
+		//t1 := time.Now();
+		//fmt.Println("Get threads: ", t1.Sub(t0), "200", desc, since, limit, forumSlug);
 		return string(content), 200
 	} else {
 		var res common.ErrStruct
 		res.Message = "Can't find forum with given slug!"
 		content, _ := json.Marshal(res)
-		t1 := time.Now();
-		fmt.Println("Get threads: ", t1.Sub(t0), "404", forumSlug);
+		//t1 := time.Now();
+		//fmt.Println("Get threads: ", t1.Sub(t0), "404", forumSlug);
 		return string(content), 404
 	}
 }

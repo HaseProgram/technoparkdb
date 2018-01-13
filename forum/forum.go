@@ -8,8 +8,6 @@ import (
 	"github.com/HaseProgram/technoparkdb/database"
 	"github.com/jackc/pgx"
 	"github.com/HaseProgram/technoparkdb/thread"
-	"time"
-	"fmt"
 	"sync"
 )
 
@@ -76,7 +74,7 @@ func Create(c *routing.Context) (string, int) {
 }
 
 func Details(c *routing.Context) (string, int) {
-	t0 := time.Now();
+	//t0 := time.Now();
 	db := database.DB
 	slug := c.Param("slug")
 	var res ForumStruct
@@ -86,15 +84,15 @@ func Details(c *routing.Context) (string, int) {
 	switch err {
 	case nil:
 		content, _ := json.Marshal(res)
-		t1 := time.Now();
-		fmt.Println("Forum details: ", t1.Sub(t0), "200");
+		//t1 := time.Now();
+		//fmt.Println("Forum details: ", t1.Sub(t0), "200");
 		return string(content), 200
 	case pgx.ErrNoRows:
 		var res common.ErrStruct
 		res.Message = "Forum not found!"
 		content, _ := json.Marshal(res)
-		t1 := time.Now();
-		fmt.Println("Forum details: ", t1.Sub(t0), "404");
+		//t1 := time.Now();
+		//fmt.Println("Forum details: ", t1.Sub(t0), "404");
 		return string(content), 404
 	default:
 		panic(err)
@@ -108,7 +106,7 @@ var UPool = sync.Pool{
 }
 
 func GetUsers(c *routing.Context) (string, int) {
-	t0 := time.Now()
+	//t0 := time.Now()
 	resOk := UPool.Get().(UserA)
 	defer UPool.Put(resOk)
 	db := database.DB
@@ -150,14 +148,14 @@ func GetUsers(c *routing.Context) (string, int) {
 			resOk = append(resOk, &tus)
 		}
 		content, _ := json.Marshal(resOk)
-		t1 := time.Now();
-		fmt.Println("Get users: ", t1.Sub(t0), "200", desc, since, limit, forumSlug, selectStatement);
+		//t1 := time.Now();
+		//fmt.Println("Get users: ", t1.Sub(t0), "200", desc, since, limit, forumSlug, selectStatement);
 		return string(content), 200
 	}
 	var res common.ErrStruct
 	res.Message = "Can't find forum with given slug!"
 	content, _ := json.Marshal(res)
-	t1 := time.Now();
-	fmt.Println("Get users (no forum): ", t1.Sub(t0), "404", forumSlug);
+	//t1 := time.Now();
+	//fmt.Println("Get users (no forum): ", t1.Sub(t0), "404", forumSlug);
 	return string(content), 404
 }
