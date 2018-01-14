@@ -30,9 +30,11 @@ EXPOSE 5432
 USER root
 
 # INSTALL GO
-RUN apt-get install -q -y git golang-go
+RUN wget https://storage.googleapis.com/golang/go1.9.1.linux-amd64.tar.gz
+RUN tar -C /usr/local -xzf go1.9.1.linux-amd64.tar.gz && mkdir go && mkdir go/src && mkdir go/bin && mkdir go/pkg
 
-ENV GOPATH /go
+ENV GOPATH $HOME/go
+ENV PATH $GOPATH/bin:/usr/local/go/bin:$PATH
 
 RUN go get -u github.com/go-ozzo/ozzo-routing/...
 
