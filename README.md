@@ -4,6 +4,7 @@
 There is API without implementation: https://tech-db-forum.bozaro.ru/. We need to create application (any language) which will process requests with correct responses. After that we need to upgrade our application so it can process as many requests as it possible.
 ## Grades
 Here are grades for our course (01.09.2017 - 20.01.2018). 1 point per RPS (Request per Second)
+
 |DATE|... - 12.01.2018 | 12.01.2018 - 14.01.2018 | 15.01.2018 - ... |
 |--|:--:|:--:|:--:|
 | **RPS** | 50 | 40* |80
