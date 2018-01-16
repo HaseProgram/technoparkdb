@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"github.com/jackc/pgx"
 	"strings"
-	"fmt"
+	//"fmt"
 )
 
 type PostStruct struct {
@@ -319,7 +319,7 @@ func Details(c *routing.Context) (string, int) {
 }
 
 func GetPosts(c *routing.Context) (string, int) {
-	t0 := time.Now()
+	//t0 := time.Now()
 	db := database.DB
 
 	threadSlugId := c.Param("slugid")
@@ -420,7 +420,7 @@ func GetPosts(c *routing.Context) (string, int) {
 		res = append(res, tps)
 	}
 	content, _ := json.Marshal(res)
-	t1 := time.Now();
-	fmt.Println("Get posts: ", t1.Sub(t0), selectStatement);
+	//t1 := time.Now();
+	//fmt.Println("Get posts: ", t1.Sub(t0), selectStatement);
 	return string(content), 200
 }
