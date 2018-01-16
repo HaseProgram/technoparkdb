@@ -74,7 +74,7 @@ CREATE INDEX IF NOT EXISTS posts_id_path_index ON posts (id, path_to_post);
 CREATE INDEX IF NOT EXISTS posts_rootidx_id_index ON posts (rootidx, id DESC);
 -----------------------------------------------------------------------
 CREATE INDEX IF NOT EXISTS posts_thread_id_index ON posts (thread_id);
-CREATE INDEX IF NOT EXISTS posts_thread_id_path_index ON posts (thread_id, id DESC);
+CREATE INDEX IF NOT EXISTS posts_thread_id_id_index ON posts (thread_id, id DESC);
 CREATE INDEX IF NOT EXISTS posts_root_index ON posts (rootidx);
 CREATE INDEX IF NOT EXISTS posts_thread_id_path_index ON posts (thread_id, path_to_post DESC);
 CREATE INDEX IF NOT EXISTS posts_thread_id_parent_id_index ON posts (thread_id, parent_id);
