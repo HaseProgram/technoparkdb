@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx"
 	"strings"
 	//"fmt"
+	"fmt"
 )
 
 type PostStruct struct {
@@ -376,9 +377,9 @@ func GetPosts(c *routing.Context) (string, int) {
 		if len(since) > 0 {
 			switch desc {
 			case "true":
-				selectStatement += " AND path_to_post < (SELECT path_to_post FROM posts WHERE id=" + since + ")"
+				selectStatement += " AND id < (SELECT rootidx FROM posts WHERE id=" + since + ")"
 			default:
-				selectStatement += " AND path_to_post > (SELECT path_to_post FROM posts WHERE id=" + since + ")"
+				selectStatement += " AND id > (SELECT rootidx FROM posts WHERE id=" + since + ")"
 			}
 		}
 		if len(limit) > 0 {
@@ -386,9 +387,11 @@ func GetPosts(c *routing.Context) (string, int) {
 		}
 		switch desc {
 		case "true":
-			selectStatement += " ORDER BY id DESC" + limit + ") ORDER BY path_to_post DESC"
+			selectStatement += " ORDER BY id DESC" + limit + ") ORDER BY rootidx DESC, path_to_post"
+			//fmt.Println("DESC PARENT: ", selectStatement);
 		default:
-			selectStatement += " ORDER BY id ASC" + limit + ") ORDER BY path_to_post ASC"
+			//fmt.Println("DESC PARENT: ", selectStatement);
+			selectStatement += " ORDER BY id ASC" + limit + ") ORDER BY path_to_post"
 		}
 	default: // flat
 		selectStatement += " thread_id=" + strconv.Itoa(threadId)
