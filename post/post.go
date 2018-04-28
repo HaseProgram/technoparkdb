@@ -10,8 +10,6 @@ import (
 	"strconv"
 	"github.com/jackc/pgx"
 	"strings"
-	//"fmt"
-	"fmt"
 )
 
 type PostStruct struct {
